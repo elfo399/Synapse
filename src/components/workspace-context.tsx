@@ -4,6 +4,7 @@ import { createContext, useContext } from "react";
 import type { ItemType } from "@/features/items/types";
 
 export interface WorkspaceActions {
+  name: string;
   capture: (type?: ItemType, inbox?: boolean) => void;
   search: () => void;
   notify: (message: string) => void;

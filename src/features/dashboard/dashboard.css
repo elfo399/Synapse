@@ -1,0 +1,327 @@
+.thinking-home {
+  max-width: 1060px;
+  padding-block: 42px 48px;
+}
+.home-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 34px;
+}
+.home-date {
+  min-height: 20px;
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+.home-heading h1 {
+  font-size: clamp(27px, 3vw, 34px);
+  line-height: 1.25;
+  font-weight: 500;
+  letter-spacing: -0.9px;
+}
+.home-inbox-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.home-inbox-link:hover {
+  color: var(--text);
+}
+.thought-composer {
+  margin-bottom: 42px;
+}
+.thought-composer h2 {
+  font-size: 15px;
+  font-weight: 500;
+  margin-bottom: 14px;
+  color: var(--text-secondary);
+}
+.thought-composer form {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  overflow: hidden;
+  transition: border-color var(--duration-fast);
+}
+.thought-composer form:focus-within {
+  border-color: var(--accent);
+}
+.thought-composer textarea {
+  display: block;
+  width: 100%;
+  min-height: 112px;
+  padding: 20px 22px 10px;
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+  font-size: 15px;
+  line-height: 1.75;
+  resize: vertical;
+}
+.thought-composer textarea:focus-visible {
+  outline: none;
+}
+.thought-composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 14px 14px 22px;
+}
+.thought-composer-footer > span {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.thought-composer-footer kbd {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+.thought-composer-footer .button {
+  min-height: 34px;
+  font-size: 12px;
+}
+.thought-composer > .form-error {
+  margin-top: 12px;
+}
+.home-reading-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  margin-bottom: 40px;
+}
+.home-section {
+  min-width: 0;
+}
+.home-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 17px;
+}
+.home-section-heading h2 {
+  font-size: 15px;
+  font-weight: 550;
+  letter-spacing: -0.15px;
+}
+.home-section-heading > span,
+.home-section-heading .text-link {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.home-section-heading .text-link:hover {
+  color: var(--text);
+}
+.home-task {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 11px 0;
+}
+.home-task-check {
+  display: grid;
+  place-items: center;
+  flex: 0 0 22px;
+  width: 22px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  color: var(--text-muted);
+  border: 0;
+}
+.home-task-check .checked {
+  display: none;
+}
+.home-task-check:hover .unchecked {
+  display: none;
+}
+.home-task-check:hover .checked {
+  display: block;
+  color: var(--success);
+}
+.home-task > a {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.home-task > a:hover {
+  color: var(--accent-hover);
+}
+.home-task small {
+  display: block;
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-top: 3px;
+}
+.home-recent-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  padding: 12px 0;
+  font-size: 13px;
+}
+.home-recent-item > svg {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+.home-recent-item > span {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.home-recent-item time {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.home-recent-item:hover > span {
+  color: var(--accent-hover);
+}
+.home-quiet-empty {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.7;
+  padding: 12px 0 18px;
+}
+.home-quiet-empty .text-link {
+  margin-top: 14px;
+  font-size: 12px;
+}
+.home-projects {
+  margin-bottom: 38px;
+}
+.home-project {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--border);
+}
+.home-project:last-child {
+  border-bottom: 0;
+}
+.home-project > svg {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+.home-project > div {
+  flex: 1;
+  min-width: 0;
+}
+.home-project strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+}
+.home-project:hover strong {
+  color: var(--accent-hover);
+}
+.home-project p {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.65;
+  margin-top: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.home-project-context {
+  color: var(--text-muted);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.home-knowledge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+  border-top: 1px solid var(--border);
+  padding-top: 22px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.home-knowledge > div {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.home-knowledge .text-link {
+  font-size: 12px;
+}
+@media (max-width: 1000px) {
+  .home-reading-columns {
+    gap: 30px;
+  }
+}
+@media (max-width: 700px) {
+  .thinking-home {
+    padding-block: 28px 36px;
+  }
+  .home-heading {
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .home-inbox-link {
+    font-size: 11px;
+    margin-top: 5px;
+    gap: 6px;
+  }
+  .home-inbox-link > svg:last-child {
+    display: none;
+  }
+  .home-reading-columns {
+    grid-template-columns: 1fr;
+    gap: 30px;
+    margin-bottom: 32px;
+  }
+  .thought-composer {
+    margin-bottom: 32px;
+  }
+  .thought-composer textarea {
+    font-size: 16px;
+    padding: 17px 16px 10px;
+  }
+  .thought-composer-footer {
+    padding: 8px 12px 12px 16px;
+    gap: 8px;
+  }
+  .thought-composer-footer > span {
+    font-size: 10px;
+  }
+  .thought-composer-footer kbd {
+    display: none;
+  }
+  .thought-composer-footer .button {
+    font-size: 11px;
+  }
+  .home-project-context {
+    display: none;
+  }
+  .home-project {
+    gap: 11px;
+  }
+  .home-project strong {
+    font-size: 13px;
+  }
+  .home-projects {
+    margin-bottom: 28px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .thought-composer form {
+    transition: none;
+  }
+}

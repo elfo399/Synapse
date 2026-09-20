@@ -71,4 +71,25 @@ Use disposable databases/projects for integration tests and restore drills. Neve
 - Inspected 11 application routes at 1440 px and 390 px, plus login, note editor, and creation dialog. Final browser sweep found no horizontal overflow or uncaught browser errors. Invalid credentials, rate limiting, and schema validation display Italian messages.
 - Rebuilt and restarted the local Docker deployment; web and PostgreSQL health checks passed.
 
+## Search dialog and dropdown consistency (21 September 2026)
+
+- Fixed the search dialog's missing styles: full-width input, aligned icon, readable result cards, scrolling, spaced keyboard shortcuts, and mobile bounds. Search focus returns to its opener on dismissal.
+- Replaced all 13 native select controls with a shared themed Radix Select, including filters, item properties, capture, relations, and graph controls. API values and the empty "all" filter remain unchanged.
+- Corrected PostgreSQL headline options that leaked `StopSel` and HTML markers into search previews. Snippets display plain text for Markdown links, wikilinks, and common formatting.
+- ESLint and TypeScript passed. All 7 Chromium E2E checks passed, including keyboard navigation, nested Escape handling, filter reset, persisted type/status changes, and mobile bounds. The 5 search/graph integration checks passed on the separate development database, including snippet regression checks for both complete and truncated wikilinks.
+- Inspected desktop (1440 px) and mobile (390 px) search and open menus in lists, capture, graph, and relations. The browser sweep reported no uncaught errors. Temporary test items were removed by their fixture cleanup; the development database was stopped after verification.
+- Rebuilt and restarted the final local Docker image. Both services are healthy; the final browser sweep also verified clean search snippets from the deployed API and captured 11 screenshots.
+
+## Complete UI redesign (21 September 2026)
+
+- Replaced the green dashboard visual system with shared charcoal/indigo tokens, a quiet shell, capture-first Home, document-oriented editing, unified collection rows, command palette, and contextual graph inspector. Scope and file map: [ui-redesign.md](ui-redesign.md).
+- Inspected all 11 workspace routes before editing. Reviewed the redesigned routes at 1440 × 1000 and 390 × 844, including note editing/reading, project detail, login, search, capture, graph global/local/selection/2D, tags and archive. Final Docker browser review reported zero uncaught browser errors and no horizontal page overflow.
+- Verified 12 loading/empty/error combinations across Home, lists, search and graph on mobile through browser-only response interception. Checked focus, Escape, keyboard navigation and retry, without changing application records.
+- ESLint and TypeScript passed. Unit tests: **32 passed**. Integration tests: **14 passed** on the separate development database, including local graph depth 1–3, invalid depth, truncation and ownership isolation.
+- Full Chromium E2E suite: **13 passed** against the isolated development preview on port 3001. Coverage includes login/logout, capture, inbox processing, editing, tags, search, real palette actions, archive/restore/delete, keyboard orbit/zoom, graph selection/filtering, 2D fallback without WebGL, fullscreen select layering, local depth, mobile navigation, preferences, long-note wikilink/backlink persistence and title resizing across desktop/mobile. Focus is also checked after switching from the mobile drawer to another dialog and closing the graph inspector. Fixture items are removed by returned IDs.
+- Authentication sessions are reused per E2E worker so test volume does not trigger repeated-login throttling. The application's rate limit was not disabled or relaxed.
+- Production `next build` completed successfully inside the Linux Docker image. Rebuilt `secondbrain:local` and restarted Compose; both web and PostgreSQL health checks passed. Existing production volume retained. The final production review uses existing items and does not create demo records.
+- Produced 46 final screenshots under the ignored local `.tools/redesign-final/` directory, plus baseline, state and long-editor captures in `.tools/redesign/`. No screenshots depend on mocked statistics or graph content; mocked network responses are limited to the explicitly named state-review images.
+- Accessibility review covered labels/roles, visible keyboard focus, nested menus, focus restoration, graph text navigation, viewport bounds and reduced-motion preference. Muted text token contrast is 4.57:1 against the lightest neutral active surface. This is not a complete automated WCAG audit or a physical mobile/GPU performance benchmark. Dense graph captions are intentionally prioritized; no native minimap or pre-existing light theme was available.
+
 The physical Raspberry Pi, its SSD/power supply, HTTPS endpoint, tailnet access policy, real credentials, and off-device backup custody cannot be inferred from a desktop test. Validate them on the target host using [deployment](deployment.md) and [operations](operations.md).

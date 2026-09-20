@@ -1,105 +1,13 @@
-.graph-view-mode {
-  display: inline-flex;
-  gap: 3px;
-  padding: 3px;
-  border: 1px solid #39443b;
-  border-radius: 8px;
-  background: #181f1b;
+﻿.graph-canvas[data-mode="3d"] canvas {
+  display: block;
+  touch-action: none;
 }
-.graph-view-mode button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 31px;
-  min-width: 53px;
-  border: 0;
-  border-radius: 5px;
-  background: transparent;
-  color: #8fa799;
-  font-size: 11px;
-  font-weight: 600;
-}
-.graph-view-mode button[aria-pressed="true"] {
-  background: #334b3d;
-  color: #d2efdf;
-}
-.graph-page .page-header { flex-wrap: wrap; }
-.graph-page .page-header-actions { flex-wrap: wrap; }
-.graph-search, .graph-footer label { flex-direction: row; }
-.graph-stage:focus-visible { outline-offset: -3px; outline: 2px solid #8ddac5; }
-.graph-stage-label b {
-  padding: 3px 5px;
-  border: 1px solid #395348;
-  border-radius: 4px;
-  background: #1a2a23;
-  color: #9dd5b8;
-  font-size: 9px;
-  font-weight: 500;
-  letter-spacing: .5px;
-}
-.graph-canvas[data-mode="3d"] canvas { display: block; touch-action: none; }
-.graph-controls, .graph-rotation-controls, .graph-legend { z-index: 2; }
-.graph-rotation-controls {
-  position: absolute;
-  right: 18px;
-  bottom: 65px;
-  display: flex;
-  align-items: center;
-  gap: 1px;
-  padding: 3px;
-  border: 1px solid #3b4656;
-  border-radius: 8px;
-  background: #1d242e;
-}
-.graph-rotation-controls > span {
-  padding: 0 8px;
-  color: #93a8a1;
-  font-size: 10px;
-}
-.graph-rotation-controls button {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border: 0;
-  border-radius: 5px;
-  background: transparent;
-  color: #c6d0dc;
-}
-.graph-rotation-controls button:hover { background: #344252; }
-.graph-interaction-hint {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 22px;
-  margin-top: 13px;
-  color: #94a9a0;
-  font-size: 10px;
-  line-height: 1.7;
-}
-.graph-keyboard-shortcuts { color: #879589; }
-.graph-touch-hint { display: none; }
-.graph-renderer-notice {
-  padding: 12px 15px;
-  border: 1px solid #455b4a;
-  border-radius: 8px;
-  background: #233027;
-  color: #b6cfbf;
+.graph-canvas[data-mode="3d"] .scene-tooltip {
+  font-family: var(--font-sans);
+  color: var(--text);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
   font-size: 12px;
-  line-height: 1.7;
-}
-@media (max-width: 760px) {
-  .graph-workspace { min-height: 0; }
-  .graph-rotation-controls { right: 10px; bottom: 56px; }
-  .graph-rotation-controls > span { padding-inline: 6px; font-size: 9px; }
-  .graph-rotation-controls button { width: 27px; }
-  .graph-keyboard-shortcuts { display: none; }
-  .graph-page .page-header-actions { gap: 10px; }
-}
-@media (hover: none), (pointer: coarse) {
-  .graph-pointer-hint { display: none; }
-  .graph-touch-hint { display: inline; }
-  .graph-keyboard-shortcuts { display: none; }
 }

@@ -1,32 +1,359 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowDownLeft, ArrowUpRight, Link2, LoaderCircle, Network, Plus, Search, Unlink } from "lucide-react";
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  Link2,
+  LoaderCircle,
+  Network,
+  Plus,
+  Search,
+  Unlink,
+} from "lucide-react";
+import { AppSelect } from "@/components/select";
 import { Modal, TypeIcon } from "@/components/ui";
 import { useWorkspace } from "@/components/workspace-context";
 import type { RelationType } from "@/domain/types";
 import { api, changed, errorMessage } from "./api";
-import { relationLabels } from "./types";
-import type { ItemDetail, ItemSummary } from "./types";
+import {
+  itemTypes,
+  relationLabels,
+  typePluralLabels,
+  type ItemDetail,
+  type ItemSummary,
+  type Relation,
+} from "./types";
+import "./relations.css";
 
-export function RelationsPanel({ item, onReload }: { item: ItemDetail; onReload: () => void }) {
+export function RelationsPanel({
+  item,
+  onReload,
+}: {
+  item: ItemDetail;
+  onReload: () => void;
+}) {
   const { notify } = useWorkspace();
-  const [open, setOpen] = useState(false); const [query, setQuery] = useState(""); const [relationType, setRelationType] = useState<RelationType>("RELATED"); const [results, setResults] = useState<ItemSummary[]>([]); const [busy, setBusy] = useState(false); const [error, setError] = useState("");
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [relationType, setRelationType] = useState<RelationType>("RELATED");
+  const [results, setResults] = useState<ItemSummary[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const searchInput = useRef<HTMLInputElement>(null);
+  const isCollection = ["PROJECT", "AREA", "RESOURCE"].includes(item.type);
+  const organized = isCollection
+    ? item.incoming.filter((relation) => relation.relationType === "PARENT")
+    : [];
+  const incoming = item.incoming.filter(
+    (relation) => !isCollection || relation.relationType !== "PARENT",
+  );
+  const contexts = item.outgoing.filter(
+    (relation) => relation.relationType === "PARENT",
+  );
+  const outgoing = item.outgoing.filter(
+    (relation) => relation.relationType !== "PARENT",
+  );
+
   useEffect(() => {
-    if (!open) return;
+    if (!open || !query.trim()) return;
     const controller = new AbortController();
-    const timeout = setTimeout(() => { api<{ items: ItemSummary[] }>(`/api/search?q=${encodeURIComponent(query)}&limit=20`, { signal: controller.signal }).then(result => setResults(result.items.filter(value => value.id !== item.id && (relationType !== "PARENT" || ["PROJECT", "AREA", "RESOURCE"].includes(value.type))))).catch(error => { if (!controller.signal.aborted) setError(errorMessage(error)); }); }, 150);
-    return () => { clearTimeout(timeout); controller.abort(); };
+    const timeout = setTimeout(() => {
+      api<{ items: ItemSummary[] }>(
+        `/api/search?q=${encodeURIComponent(query)}&limit=20`,
+        { signal: controller.signal },
+      )
+        .then((result) => {
+          if (!controller.signal.aborted)
+            setResults(
+              result.items.filter(
+                (value) =>
+                  value.id !== item.id &&
+                  (relationType !== "PARENT" ||
+                    ["PROJECT", "AREA", "RESOURCE"].includes(value.type)),
+              ),
+            );
+        })
+        .catch((error) => {
+          if (!controller.signal.aborted) setError(errorMessage(error));
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setLoading(false);
+        });
+    }, 150);
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
   }, [open, query, item.id, relationType]);
+
+  function openRelation(type: RelationType) {
+    setRelationType(type);
+    setQuery("");
+    setResults([]);
+    setError("");
+    setLoading(false);
+    setOpen(true);
+  }
   async function add(targetItemId: string) {
-    setBusy(true); setError("");
-    try { await api("/api/relations", { method: "POST", body: JSON.stringify({ sourceItemId: item.id, targetItemId, relationType }) }); onReload(); changed(); setOpen(false); notify("Nuovo collegamento creato."); } catch (error) { setError(errorMessage(error)); } finally { setBusy(false); }
+    setBusy(true);
+    setError("");
+    try {
+      await api("/api/relations", {
+        method: "POST",
+        body: JSON.stringify({
+          sourceItemId: item.id,
+          targetItemId,
+          relationType,
+        }),
+      });
+      onReload();
+      changed();
+      setOpen(false);
+      notify("Nuovo collegamento creato.");
+    } catch (error) {
+      setError(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
   }
   async function remove(id: string) {
-    try { await api("/api/relations", { method: "DELETE", body: JSON.stringify({ id }) }); onReload(); changed(); notify("Collegamento manuale rimosso."); } catch (error) { notify(errorMessage(error)); }
+    try {
+      await api("/api/relations", {
+        method: "DELETE",
+        body: JSON.stringify({ id }),
+      });
+      onReload();
+      changed();
+      notify("Collegamento manuale rimosso.");
+    } catch (error) {
+      notify(errorMessage(error));
+    }
   }
-  return <><section className="detail-section"><div className="detail-section-heading"><h2><Link2 size={16} />Collegamenti</h2><button className="icon-button" aria-label="Aggiungi collegamento" onClick={() => { setRelationType("RELATED"); setOpen(true); }}><Plus size={16} /></button></div><p className="section-hint">Le idee intorno a questa idea.</p><div className="relation-subheading"><ArrowUpRight size={13} />Collegamenti in uscita<span>{item.outgoing.length}</span></div>{item.outgoing.length ? item.outgoing.map(relation => <div className="relation-row" key={relation.id}><TypeIcon type={relation.target.type} size={14} /><Link href={`/items/${relation.target.id}`}>{relation.target.title}<span>{relation.relationType === "PARENT" ? "Organizzato in" : relation.wikilink ? "Collegamento interno" : relationLabels[relation.relationType]}</span></Link>{relation.manual && <button className="icon-button" aria-label={`Rimuovi il collegamento a ${relation.target.title}`} title={relation.wikilink ? "Rimuovi il collegamento manuale; quello interno rimane finché non lo rimuovi dal contenuto" : "Rimuovi collegamento"} onClick={() => remove(relation.id)}><Unlink size={13} /></button>}</div>) : <p className="relation-empty">Nessun collegamento in uscita.</p>}<button className="button button-secondary full-width" onClick={() => { setRelationType("PARENT"); setOpen(true); }}><Plus size={14} />Assegna a progetto, area o risorsa</button><div className="relation-subheading backlinks-heading"><ArrowDownLeft size={13} />Collegamenti in entrata<span>{item.incoming.length}</span></div>{item.incoming.length ? item.incoming.map(relation => <div className="relation-row" key={relation.id}><TypeIcon type={relation.source.type} size={14} /><Link href={`/items/${relation.source.id}`}>{relation.source.title}<span>{relation.relationType === "PARENT" ? "Organizzato qui" : relation.wikilink ? "Fa riferimento a questa idea" : "Collegato a questa idea"}</span></Link></div>) : <p className="relation-empty">Qui compariranno le idee che rimandano a questo elemento.</p>}<Link className="text-link local-graph-link" href={`/graph?focus=${item.id}`}><Network size={15} />Esplora i collegamenti vicini<ArrowUpRight size={14} /></Link></section>
-    <Modal open={open} onOpenChange={setOpen} title="Crea un collegamento" description="Le idee diventano più utili quando sono collegate."><label>Relazione<select value={relationType} onChange={event => setRelationType(event.target.value as RelationType)}><option value="RELATED">Collegato a</option><option value="REFERENCES">Riferimenti</option><option value="PARENT">Organizzato in un progetto, un’area o una risorsa</option></select></label><div className="filter-search relation-search"><Search size={16} /><input aria-label="Trova un elemento da collegare" autoFocus placeholder="Cerca un elemento…" value={query} onChange={event => setQuery(event.target.value)} /></div>{error && <p className="form-error" role="alert">{error}</p>}<div className="connection-results">{results.map(result => <button className="connection-result" key={result.id} disabled={busy} onClick={() => add(result.id)}><TypeIcon type={result.type} /><span>{result.title}</span>{busy ? <LoaderCircle size={14} className="spin" /> : <Plus size={15} />}</button>)}{!results.length && <p className="muted small">Nessun elemento trovato. Creane un altro, poi collegalo qui.</p>}</div></Modal>
-  </>;
+  function relationRow(relation: Relation, direction: "incoming" | "outgoing") {
+    const related =
+      direction === "incoming" ? relation.source : relation.target;
+    return (
+      <div className="document-relation-row" key={relation.id}>
+        <TypeIcon type={related.type} size={15} />
+        <Link href={`/items/${related.id}`}>
+          <span>{related.title}</span>
+          {related.archivedAt && <small>Archiviato</small>}
+        </Link>
+        {direction === "outgoing" && relation.manual && (
+          <button
+            className="icon-button relation-remove"
+            aria-label={`Rimuovi il collegamento a ${related.title}`}
+            title={
+              relation.wikilink
+                ? "Rimuovi il collegamento manuale; quello interno rimane nel contenuto"
+                : "Rimuovi collegamento"
+            }
+            onClick={() => remove(relation.id)}
+          >
+            <Unlink size={13} />
+          </button>
+        )}
+        {direction === "outgoing" && (
+          <small className="document-relation-kind">
+            {relation.wikilink
+              ? "Nel testo"
+              : relationLabels[relation.relationType]}
+          </small>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <section
+        className="document-connections"
+        aria-labelledby="document-connections-heading"
+      >
+        <div className="document-connections-heading">
+          <h2 id="document-connections-heading">
+            <Link2 size={16} />
+            {isCollection ? "Conoscenze collegate" : "Collegamenti"}
+          </h2>
+          <button
+            className="text-link"
+            aria-label="Aggiungi collegamento"
+            onClick={() => openRelation("RELATED")}
+          >
+            <Plus size={14} />
+            Collega
+          </button>
+        </div>
+        {contexts.length > 0 && (
+          <div className="document-contexts">
+            <h3>Organizzato in</h3>
+            {contexts.map((relation) => relationRow(relation, "outgoing"))}
+          </div>
+        )}
+        {isCollection && (
+          <div className="document-organized">
+            <h3>
+              {item.type === "PROJECT"
+                ? "Nel progetto"
+                : item.type === "AREA"
+                  ? "In quest’area"
+                  : "In questa raccolta"}
+              <span>{organized.length}</span>
+            </h3>
+            {organized.length ? (
+              <div className="document-organized-groups">
+                {itemTypes.map((type) => {
+                  const group = organized.filter(
+                    (relation) => relation.source.type === type,
+                  );
+                  return (
+                    group.length > 0 && (
+                      <section key={type}>
+                        <h4>{typePluralLabels[type]}</h4>
+                        {group.map((relation) =>
+                          relationRow(relation, "incoming"),
+                        )}
+                      </section>
+                    )
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="document-relation-empty">
+                Gli elementi assegnati a{" "}
+                {item.type === "PROJECT"
+                  ? "questo progetto"
+                  : item.type === "AREA"
+                    ? "quest’area"
+                    : "questa risorsa"}{" "}
+                compariranno qui.
+              </p>
+            )}
+          </div>
+        )}
+        <div className="document-relation-columns">
+          <section>
+            <h3>
+              <ArrowUpRight size={13} />
+              Collegamenti in uscita<span>{outgoing.length}</span>
+            </h3>
+            {outgoing.length ? (
+              outgoing.map((relation) => relationRow(relation, "outgoing"))
+            ) : (
+              <p className="document-relation-empty">
+                Collega una nota con <code>[[titolo]]</code> o usa Collega.
+              </p>
+            )}
+          </section>
+          <section>
+            <h3>
+              <ArrowDownLeft size={13} />
+              Collegamenti in entrata<span>{incoming.length}</span>
+            </h3>
+            {incoming.length ? (
+              incoming.map((relation) => relationRow(relation, "incoming"))
+            ) : (
+              <p className="document-relation-empty">
+                Le note che rimandano qui compariranno in questo spazio.
+              </p>
+            )}
+          </section>
+        </div>
+        <div className="document-connection-actions">
+          <button className="text-link" onClick={() => openRelation("PARENT")}>
+            <Plus size={13} />
+            Assegna a progetto, area o risorsa
+          </button>
+          <Link className="text-link" href={`/graph?focus=${item.id}`}>
+            <Network size={14} />
+            Esplora i collegamenti vicini
+            <ArrowUpRight size={12} />
+          </Link>
+        </div>
+      </section>
+      <Modal
+        open={open}
+        onOpenChange={setOpen}
+        initialFocusRef={searchInput}
+        title="Crea un collegamento"
+        description="Trova una nota, un progetto o una risorsa da collegare."
+      >
+        <div className="relation-dialog-body">
+          <label>
+            Relazione
+            <AppSelect
+              aria-label="Relazione"
+              value={relationType}
+              onValueChange={(value) => {
+                setRelationType(value as RelationType);
+                setResults([]);
+                setError("");
+                setLoading(Boolean(query.trim()));
+              }}
+              options={[
+                { value: "RELATED", label: "Collegato a" },
+                { value: "REFERENCES", label: "Riferimenti" },
+                {
+                  value: "PARENT",
+                  label: "Organizzato in un progetto, un’area o una risorsa",
+                },
+              ]}
+            />
+          </label>
+          <div className="relation-dialog-search">
+            <Search size={16} />
+            <input
+              ref={searchInput}
+              aria-label="Trova un elemento da collegare"
+              placeholder="Cerca un elemento…"
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setResults([]);
+                setError("");
+                setLoading(Boolean(event.target.value.trim()));
+              }}
+            />
+          </div>
+          {error && (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          )}
+          <div className="connection-results">
+            {loading ? (
+              <p role="status">Ricerca…</p>
+            ) : (
+              results.map((result) => (
+                <button
+                  className="connection-result"
+                  key={result.id}
+                  disabled={busy}
+                  onClick={() => add(result.id)}
+                >
+                  <TypeIcon type={result.type} />
+                  <span>{result.title}</span>
+                  {busy ? (
+                    <LoaderCircle size={14} className="spin" />
+                  ) : (
+                    <Plus size={15} />
+                  )}
+                </button>
+              ))
+            )}
+            {!loading && !error && !results.length && (
+              <p>
+                {query.trim()
+                  ? "Nessun elemento corrispondente."
+                  : "Scrivi il titolo dell’elemento da collegare."}
+              </p>
+            )}
+          </div>
+        </div>
+      </Modal>
+    </>
+  );
 }

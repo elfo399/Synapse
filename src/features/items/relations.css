@@ -1,0 +1,213 @@
+.document-connections {
+  margin-top: 36px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+.document-connections-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.document-connections-heading h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14px;
+  font-weight: 550;
+}
+.document-connections-heading h2 > svg {
+  color: var(--text-muted);
+}
+.document-connections-heading .text-link {
+  font-size: 12px;
+}
+.document-connections h3 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+.document-connections h3 > span {
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-left: 4px;
+}
+.document-contexts {
+  margin-bottom: 26px;
+}
+.document-organized {
+  margin-bottom: 28px;
+}
+.document-organized-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 30px;
+}
+.document-organized-groups h4 {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin: 0 0 7px;
+}
+.document-relation-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 30px;
+}
+.document-relation-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  min-height: 37px;
+  padding-block: 7px;
+  font-size: 13px;
+}
+.document-relation-row > svg {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+.document-relation-row > a {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.document-relation-row > a:hover {
+  color: var(--accent-hover);
+}
+.document-relation-row > a small {
+  display: block;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+.document-relation-row .relation-remove {
+  flex-shrink: 0;
+  width: 25px;
+  height: 25px;
+  opacity: 0;
+}
+.document-relation-row:hover .relation-remove,
+.document-relation-row:focus-within .relation-remove {
+  opacity: 1;
+}
+.document-relation-kind {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+.document-relation-empty {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.8;
+  max-width: 310px;
+}
+.document-relation-empty code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.document-connection-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 24px;
+}
+.document-connection-actions .text-link {
+  font-size: 11px;
+}
+.relation-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+.relation-dialog-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+}
+.relation-dialog-search:focus-within {
+  border-color: var(--accent);
+}
+.relation-dialog-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 12px 0;
+  font-size: 14px;
+}
+.relation-dialog-search input:focus-visible {
+  outline: none;
+}
+.connection-results {
+  max-height: 330px;
+  min-height: 100px;
+  overflow: auto;
+}
+.connection-results > p {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 22px 8px;
+  line-height: 1.7;
+}
+.connection-result {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  text-align: left;
+  font-size: 13px;
+}
+.connection-result:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.connection-result > span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.connection-result > svg {
+  flex-shrink: 0;
+}
+@media (max-width: 700px) {
+  .document-relation-columns,
+  .document-organized-groups {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 22px;
+  }
+  .document-relation-kind {
+    font-size: 9px;
+  }
+  .document-connection-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .relation-dialog-search input {
+    font-size: 16px;
+  }
+}
+@media (hover: none) {
+  .document-relation-row .relation-remove {
+    opacity: 1;
+  }
+}

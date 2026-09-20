@@ -3,19 +3,119 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, BrainCircuit, LoaderCircle, ShieldCheck } from "lucide-react";
+import {
+  ArrowRight,
+  Eye,
+  EyeOff,
+  LoaderCircle,
+  LockKeyhole,
+  Network,
+} from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import "./login.css";
 
 export function LoginForm() {
   const router = useRouter();
-  const [email, setEmail] = useState(""); const [password, setPassword] = useState(""); const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [passwordVisible, setPasswordVisible] = useState(false);
   async function submit(event: React.FormEvent) {
-    event.preventDefault(); setBusy(true); setError("");
+    event.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setError("");
     try {
       const result = await authClient.signIn.email({ email, password });
-      if (result.error) { setError((result.error.status === 429 ? "Troppi tentativi di accesso. Attendi un minuto e riprova." : "Accesso non riuscito. Controlla email e password.")); return; }
-      router.push("/"); router.refresh();
-    } catch { setError("Impossibile connettersi. Riprova."); } finally { setBusy(false); }
+      if (result.error) {
+        setError(
+          result.error.status === 429
+            ? "Troppi tentativi di accesso. Attendi un minuto e riprova."
+            : "Accesso non riuscito. Controlla email e password.",
+        );
+        return;
+      }
+      router.push("/");
+      router.refresh();
+    } catch {
+      setError("Impossibile connettersi. Riprova.");
+    } finally {
+      setBusy(false);
+    }
   }
-  return <main className="login-page"><div className="login-story"><Link href="/" className="brand"><span className="brand-mark"><BrainCircuit size={25} /></span><span>Synapse</span></Link><div><div className="eyebrow">IDEE CHIARE. CONNESSIONI PROFONDE.</div><h1>Un po’ meno rumore.<br />Un po’ più di <em>chiarezza.</em></h1><p>Uno spazio privato per le tue idee, le tue conoscenze e ciò che vuoi realizzare.</p><div className="login-orbit" aria-hidden="true"><span className="orbit orbit-one" /><span className="orbit orbit-two" /><span className="orbit orbit-three" /><span className="orbit-center"><BrainCircuit size={42} /></span><span className="orbit-dot dot-one" /><span className="orbit-dot dot-two" /><span className="orbit-dot dot-three" /></div></div><div className="private-indicator"><ShieldCheck size={15} />Le tue conoscenze appartengono a te.</div></div><div className="login-form-side"><form className="login-form" onSubmit={submit}><span className="login-welcome">IL TUO SPAZIO PERSONALE</span><h2>Bentornato.</h2><p>La tua prossima idea nasce qui.</p><label>Indirizzo email<input type="email" autoComplete="username" required placeholder="tu@esempio.it" value={email} onChange={event => setEmail(event.target.value)} /></label><label>Password<input type="password" autoComplete="current-password" required placeholder="Inserisci la password" value={password} onChange={event => setPassword(event.target.value)} /></label>{error && <p role="alert" className="form-error">{error}</p>}<button className="button button-primary" disabled={busy} type="submit">{busy ? <LoaderCircle size={17} className="spin" /> : <ArrowRight size={17} />}Accedi</button><p className="login-note"><ShieldCheck size={14} />Privato per scelta. Ospitato sul tuo server.</p></form></div></main>;
+  return (
+    <main className="login-page">
+      <section className="login-content" aria-labelledby="login-title">
+        <Link href="/" className="login-brand" aria-label="Synapse">
+          <Network size={25} strokeWidth={1.65} aria-hidden="true" />
+          <span>Synapse</span>
+        </Link>
+        <header className="login-heading">
+          <h1 id="login-title">Il tuo spazio personale.</h1>
+          <p>Accedi per riprendere da dove eri rimasto.</p>
+        </header>
+        <form className="login-form" onSubmit={submit} aria-busy={busy}>
+          <label htmlFor="login-email">
+            Indirizzo email
+            <input
+              id="login-email"
+              type="email"
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
+              required
+              placeholder="tu@esempio.it"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          </label>
+          <label htmlFor="login-password">Password</label>
+          <div className="login-password-field">
+            <input
+              id="login-password"
+              type={passwordVisible ? "text" : "password"}
+              autoComplete="current-password"
+              required
+              placeholder="Inserisci la password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={
+                passwordVisible ? "Nascondi password" : "Mostra password"
+              }
+              aria-pressed={passwordVisible}
+              onClick={() => setPasswordVisible((value) => !value)}
+            >
+              {passwordVisible ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+          {error && (
+            <p role="alert" className="form-error">
+              {error}
+            </p>
+          )}
+          <button
+            className="button button-primary"
+            disabled={busy}
+            type="submit"
+          >
+            {busy ? (
+              <LoaderCircle size={16} className="spin" />
+            ) : (
+              <ArrowRight size={16} aria-hidden="true" />
+            )}
+            Accedi
+          </button>
+        </form>
+        <p className="login-note">
+          <LockKeyhole size={12} aria-hidden="true" />
+          Accesso privato · Server personale
+        </p>
+      </section>
+    </main>
+  );
 }
