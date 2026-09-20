@@ -1,0 +1,70 @@
+{
+  "name": "synapse",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.12 <25"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "prisma generate && next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "next typegen && tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run --project unit",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:e2e": "playwright test",
+    "db:generate": "prisma generate",
+    "db:validate": "prisma validate",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:prod": "prisma migrate deploy",
+    "db:bootstrap": "tsx scripts/bootstrap.ts",
+    "db:seed": "tsx scripts/seed.ts",
+    "db:studio": "prisma studio",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.3",
+    "@radix-ui/react-dialog": "1.1.23",
+    "better-auth": "1.7.5",
+    "cytoscape": "3.34.3",
+    "dotenv": "18.0.1",
+    "lucide-react": "1.47.0",
+    "next": "16.3.5",
+    "prisma": "6.19.3",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-force-graph-3d": "1.29.1",
+    "react-markdown": "10.1.0",
+    "rehype-sanitize": "6.0.0",
+    "remark-gfm": "4.0.1",
+    "three": "0.186.0",
+    "three-spritetext": "1.10.0",
+    "tsx": "4.23.15",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/cytoscape": "3.21.9",
+    "@types/node": "22.20.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@types/three": "0.186.0",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.3.5",
+    "prettier": "3.9.8",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  },
+  "overrides": {
+    "@prisma/config": {
+      "deepmerge-ts": "8.0.0"
+    }
+  }
+}

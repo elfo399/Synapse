@@ -1,0 +1,176 @@
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+enum ItemType {
+  NOTE
+  TASK
+  PROJECT
+  AREA
+  RESOURCE
+  BOOKMARK
+}
+
+enum ItemStatus {
+  ACTIVE
+  TODO
+  IN_PROGRESS
+  DONE
+  ON_HOLD
+  CANCELLED
+}
+
+enum RelationType {
+  RELATED
+  PARENT
+  REFERENCES
+}
+
+model User {
+  id String @id @default(cuid())
+  name String
+  email String @unique
+  emailVerified Boolean @default(false)
+  image String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sessions Session[]
+  accounts Account[]
+  items Item[]
+  tags Tag[]
+}
+
+model Session {
+  id String @id @default(cuid())
+  expiresAt DateTime
+  token String @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Account {
+  id String @id @default(cuid())
+  accountId String
+  providerId String
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken String?
+  refreshToken String?
+  idToken String?
+  accessTokenExpiresAt DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope String?
+  password String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([userId])
+  @@unique([providerId, accountId])
+}
+
+model Verification {
+  id String @id @default(cuid())
+  identifier String
+  value String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([identifier])
+}
+
+model RateLimit {
+  id String @id @default(cuid())
+  key String @unique
+  count Int
+  lastRequest BigInt
+}
+
+model Item {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type ItemType @default(NOTE)
+  title String @db.VarChar(200)
+  titleNormalized String @db.VarChar(200)
+  content String @default("") @db.Text
+  status ItemStatus @default(ACTIVE)
+  inbox Boolean @default(true)
+  url String? @db.VarChar(2048)
+  dueAt DateTime?
+  completedAt DateTime?
+  archivedAt DateTime?
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  searchVector Unsupported("tsvector")? @default(dbgenerated())
+  tags ItemTag[]
+  outgoing ItemRelation[] @relation("SourceRelations")
+  incoming ItemRelation[] @relation("TargetRelations")
+  wikiReferences WikiReference[]
+  @@unique([userId, id])
+  @@unique([userId, titleNormalized])
+  @@index([userId, archivedAt, updatedAt(sort: Desc)])
+  @@index([userId, type, archivedAt, status])
+  @@index([userId, inbox, archivedAt])
+  @@index([userId, dueAt])
+}
+
+model Tag {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name String @db.VarChar(40)
+  normalizedName String @db.VarChar(40)
+  createdAt DateTime @default(now())
+  items ItemTag[]
+  @@unique([userId, id])
+  @@unique([userId, normalizedName])
+}
+
+model ItemTag {
+  userId String
+  itemId String
+  tagId String
+  item Item @relation(fields: [userId, itemId], references: [userId, id], onDelete: Cascade)
+  tag Tag @relation(fields: [userId, tagId], references: [userId, id], onDelete: Cascade)
+  @@id([itemId, tagId])
+  @@index([userId, tagId])
+}
+
+model ItemRelation {
+  id String @id @default(cuid())
+  userId String
+  sourceItemId String
+  targetItemId String
+  relationType RelationType @default(RELATED)
+  manual Boolean @default(true)
+  wikilink Boolean @default(false)
+  createdAt DateTime @default(now())
+  source Item @relation("SourceRelations", fields: [userId, sourceItemId], references: [userId, id], onDelete: Cascade)
+  target Item @relation("TargetRelations", fields: [userId, targetItemId], references: [userId, id], onDelete: Cascade)
+  @@unique([userId, sourceItemId, targetItemId, relationType])
+  @@index([userId, sourceItemId])
+  @@index([userId, targetItemId])
+}
+
+model WikiReference {
+  id String @id @default(cuid())
+  userId String
+  sourceItemId String
+  title String @db.VarChar(200)
+  titleNormalized String @db.VarChar(200)
+  source Item @relation(fields: [userId, sourceItemId], references: [userId, id], onDelete: Cascade)
+  @@unique([sourceItemId, titleNormalized])
+  @@index([userId, titleNormalized])
+}
