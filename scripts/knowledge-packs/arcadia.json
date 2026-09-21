@@ -20,7 +20,7 @@
         "roguelike"
       ],
       "parentSlugs": [],
-      "content": "# Arcadia\n\nKnowledge hub tecnico del progetto Unity Arcadia. Questa pagina è l'indice stabile del progetto dentro Synapse: le note figlie separano architettura, sistemi runtime, dati, authoring e rischi senza duplicare l'intero repository.\n\n## Snapshot\n\n- Repository: `elfo399/Arcadia`\n- Branch: `main`\n- Snapshot indicizzato: `0db1378143b44f10a498de62cf602325ce69fa0d`\n- Data snapshot: 2026-09-21\n- Unity: 2022.3.62f3\n- Linguaggio principale: C#\n\n## Indice\n\n### Contesto e architettura\n\n- [[Arcadia Repository]]\n- [[Arcadia — Project Context]]\n- [[Arcadia — Tech Stack]]\n- [[Arcadia — Architecture Rules]]\n- [[Arcadia — System Map]]\n\n### Dungeon e gameplay\n\n- [[Arcadia — Dungeon Framework]]\n- [[Arcadia — Dungeon Generation & Themes]]\n- [[Arcadia — Rooms, Rules & Persistence]]\n- [[Arcadia — Run State & Save]]\n- [[Arcadia — Player Runtime]]\n- [[Arcadia — Combat & Target Lock]]\n- [[Arcadia — Inventory, Equipment & Magic]]\n- [[Arcadia — Items & Data]]\n- [[Arcadia — Magic Progression]]\n- [[Arcadia — Merchant, Economy & Storage]]\n- [[Arcadia — Enemy System]]\n\n### Progressione e contenuti\n\n- [[Arcadia — Quest System]]\n- [[Arcadia — Dialogue & NPC Services]]\n- [[Arcadia — Blacksmith & Crafting]]\n\n### Runtime, UI e operatività\n\n- [[Arcadia — UI Architecture]]\n- [[Arcadia — Scenes & Runtime References]]\n- [[Arcadia — Map, Minimap & Weather]]\n- [[Arcadia — Authoring & Editor Tools]]\n- [[Arcadia — Known Risks & Technical Debt]]\n- [[Arcadia — Validation & Smoke Tests]]\n\n## Regola di lettura delle fonti\n\n`handoff.md` è prezioso come storia architetturale, ma non è sempre la fonte più recente. Quando una parte è stata evoluta successivamente, prevalgono il codice corrente e i documenti più recenti, in particolare `Assets/_Project/DUNGEON_FRAMEWORK.md` e `Docs/AI/UnityProjectContext.md`.\n\nQuesto knowledge pack non copia asset binari, prefab, texture, `.meta`, contenuti third-party o cache. Conserva invece decisioni, responsabilità, invarianti, flussi e percorsi sorgente utili a riprendere il lavoro."
+      "content": "# Arcadia\n\nKnowledge hub tecnico del progetto Unity Arcadia. Questa pagina è l'indice stabile del progetto dentro Synapse: le note figlie separano architettura, sistemi runtime, dati, authoring e rischi senza duplicare l'intero repository.\n\n## Snapshot\n\n- Repository: `elfo399/Arcadia`\n- Branch: `main`\n- Snapshot indicizzato: `0db1378143b44f10a498de62cf602325ce69fa0d`\n- Data snapshot: 2026-09-21\n- Unity: 2022.3.62f3\n- Linguaggio principale: C#\n\n## Indice\n\n### Contesto e architettura\n\n- [[Arcadia Repository]]\n- [[Arcadia — Project Context]]\n- [[Arcadia — Tech Stack]]\n- [[Arcadia — Architecture Rules]]\n- [[Arcadia — System Map]]\n\n### Dungeon e gameplay\n\n- [[Arcadia — Dungeon Framework]]\n- [[Arcadia — Dungeon Generation & Themes]]\n- [[Arcadia — Rooms, Rules & Persistence]]\n- [[Arcadia — Run State & Save]]\n- [[Arcadia — Player Runtime]]\n- [[Arcadia — Combat & Target Lock]]\n- [[Arcadia — Inventory, Equipment & Magic]]\n- [[Arcadia — Items & Data]]\n- [[Arcadia — Magic Progression]]\n- [[Arcadia — Merchant, Economy & Storage]]\n- [[Arcadia — Enemy System]]\n\n### Progressione e contenuti\n\n- [[Arcadia — Quest System]]\n- [[Arcadia — Dialogue & NPC Services]]\n- [[Arcadia — Narrative State & Story Flags]]\n- [[Arcadia — NPC & Hub Services]]\n- [[Arcadia — Economy & Shop]]\n- [[Arcadia — Blacksmith & Crafting]]\n\n### Runtime, UI e operatività\n\n- [[Arcadia — UI Architecture]]\n- [[Arcadia — Interactions & Gameplay Interfaces]]\n- [[Arcadia — Scenes & Runtime References]]\n- [[Arcadia — Map, Minimap & Weather]]\n- [[Arcadia — Authoring & Editor Tools]]\n- [[Arcadia — Known Risks & Technical Debt]]\n- [[Arcadia — Validation & Smoke Tests]]\n\n## Regola di lettura delle fonti\n\n`handoff.md` è prezioso come storia architetturale, ma non è sempre la fonte più recente. Quando una parte è stata evoluta successivamente, prevalgono il codice corrente e i documenti più recenti, in particolare `Assets/_Project/DUNGEON_FRAMEWORK.md` e `Docs/AI/UnityProjectContext.md`.\n\nQuesto knowledge pack non copia asset binari, prefab, texture, `.meta`, contenuti third-party o cache. Conserva invece decisioni, responsabilità, invarianti, flussi e percorsi sorgente utili a riprendere il lavoro."
     },
     {
       "slug": "repository",
@@ -396,6 +396,141 @@
         "arcadia"
       ],
       "content": "# Validation & Smoke Tests\n\nArcadia richiede soprattutto validation editor + Play Mode smoke test perché molti contratti vivono in prefab, scene e riferimenti serializzati.\n\n## Prima di un push che tocca dungeon\n\n1. Validare/generare gli stable ID.\n2. Aprire prefab rappresentativi per ogni room role modificato.\n3. Controllare missing script/reference.\n4. Generare più floor/seed e verificare Start → normal → special → boss.\n5. Verificare NavMesh e accesso a porte/interactables.\n6. Testare save/resume su encounter completato e interrotto.\n7. Testare cambio floor e persistenza modifier.\n\n## Player/UI\n\n1. Movimento e camera prima/dopo apertura menu.\n2. Weapon left/right, magic, usable e armor equip.\n3. Gamepad focus su tutti gli slot.\n4. Damage fisico/magico con armor.\n5. HUD e detail panels dopo scene change.\n\n## Persistence\n\n1. Avviare da save esistente compatibile.\n2. Verificare inventory instance ID e loadout.\n3. Quest + reward state dopo reload.\n4. Story flag/dialogue history.\n5. Merchant/blacksmith/magic/material progression.\n6. Migrazione di un save legacy rappresentativo quando si tocca `SaveSystem`.\n\n## Scene lifecycle\n\n1. Entrare nel dungeon.\n2. Cambiare floor.\n3. Tornare alla Hub se il flow lo prevede.\n4. Controllare camera, target lock, minimap, compass, HUD, menu e dialogue UI.\n5. Verificare assenza di manager duplicati.\n\n## Dialogue/NPC\n\nTestare choice locked/hidden, history, quest actions, story flags, servizio NPC e input lock; un service failure non deve consentire retry che duplichino effetti parziali.\n\nVedi [[Arcadia — Authoring & Editor Tools]] e [[Arcadia — Known Risks & Technical Debt]]."
+    },
+    {
+      "slug": "player-classes-bootstrap",
+      "title": "Arcadia — Player Classes & Bootstrap",
+      "type": "NOTE",
+      "tags": [
+        "arcadia",
+        "player",
+        "classes",
+        "bootstrap"
+      ],
+      "parentSlugs": [
+        "arcadia"
+      ],
+      "content": "# Player Classes & Bootstrap\n\nLa classe iniziale del player è data-driven e viene applicata una sola volta all'avvio di una nuova identità di gioco.\n\n## Dati\n\n`PlayerClassData` definisce:\n\n- `classId` stabile\n- attributi iniziali e karma\n- loadout weapon destro/sinistro\n- magic e usable loadout con quantità\n- armor loadout\n- backpack iniziale\n\n`PlayerClassDatabase` è il catalogo con classe default e lookup case-insensitive per ID. Lo snapshot corrente include anche un asset `Resources/PlayerClassDatabase.asset`.\n\n## Bootstrap\n\n`PlayerClassSelection` conserva la selezione pending per una nuova partita; `PlayerStats` la consuma durante il bootstrap persistente. `PlayerClassBootstrapper` può applicare la classe corrente quando necessario.\n\nDopo l'applicazione iniziale, stats e inventory runtime diventano autorevoli. La classe non deve essere riapplicata a ogni scene load, altrimenti sovrascriverebbe progressione e loot.\n\n## Inventory iniziale\n\nL'applicazione della classe ricrea le copie fisiche di weapon/armor con nuovi `instanceId`, configura i loadout e aggiunge il backpack rispettando le semantiche stackable/non-stackable di [[Arcadia — Inventory, Equipment & Magic]].\n\nVedi [[Arcadia — Player Runtime]] e [[Arcadia — Run State & Save]].\n\n### Fonti\n\n- `Assets/_Project/Scripts/Player/PlayerClassData.cs`\n- `Assets/_Project/Scripts/Player/PlayerClassDatabase.cs`\n- `Assets/_Project/Scripts/Player/PlayerClassSelection.cs`\n- `Assets/_Project/Scripts/Player/PlayerClassBootstrapper.cs`"
+    },
+    {
+      "slug": "economy-shop",
+      "title": "Arcadia — Economy & Shop",
+      "type": "NOTE",
+      "tags": [
+        "arcadia",
+        "economy",
+        "shop",
+        "merchant"
+      ],
+      "parentSlugs": [
+        "arcadia"
+      ],
+      "content": "# Economy & Shop\n\nL'economia corrente distingue valuta della run e banca persistente, mentre il merchant mantiene stock persistente per entry.\n\n## Currency\n\n`PlayerStats` espone `runCoins` e `bankCoins`. I campi gold/silver/copper restano compatibilità legacy. I dialoghi e i servizi gameplay che parlano di coins devono usare le API autorevoli del player, non duplicare wallet locali.\n\n## Merchant data\n\n`MerchantData` è uno ScriptableObject con `merchantId` e lista di `StockEntry`. Ogni entry può avere quantità limitata oppure stock infinito.\n\n## Persistent stock\n\n`MerchantStockState` salva la quantità residua per chiave `merchantId|entryId`. Le entry moderne devono usare `entryId` stabile; il fallback `entry_N` esiste per migrare salvataggi più vecchi.\n\nÈ presente una canonicalizzazione legacy dell'ID merchant (`merchant_tony` → `merchant`), quindi rinominare identificatori persistenti richiede una migrazione consapevole.\n\n## Shop UI\n\n`ShopManager` supporta modalità Buy/Sell, inventory slot, detail panel, prezzi e input gamepad. Usa `PlayerInventory`, `PlayerStats` e `MerchantStockState`; la UI non è proprietaria di denaro o quantità residue.\n\nQuando un item fisico viene venduto/equipaggiato, l'`instanceId` resta importante per non confondere copie identiche.\n\nVedi [[Arcadia — Items & Data]], [[Arcadia — Inventory, Equipment & Magic]] e [[Arcadia — Dialogue & NPC Services]].\n\n### Fonti\n\n- `Assets/_Project/Scripts/Shop/MerchantData.cs`\n- `Assets/_Project/Scripts/Shop/MerchantStockState.cs`\n- `Assets/_Project/Scripts/Shop/ShopManager.cs`\n- `Assets/_Project/Scripts/Player/PlayerStats.cs`"
+    },
+    {
+      "slug": "material-storage",
+      "title": "Arcadia — Material Storage & Crafting Resources",
+      "type": "NOTE",
+      "tags": [
+        "arcadia",
+        "materials",
+        "storage",
+        "crafting"
+      ],
+      "parentSlugs": [
+        "arcadia"
+      ],
+      "content": "# Material Storage & Crafting Resources\n\n`MaterialStorageState` è uno storage permanente aggregato esclusivamente per materiali di crafting.\n\n## Semantica\n\nA differenza dell'inventario fisico:\n\n- non ha `instanceId`\n- non conserva upgrade level\n- non rappresenta copie fisiche equipaggiabili\n- aggrega quantità per `ItemData` materiale\n\nQuesta separazione evita di usare l'inventario player come database universale per risorse di crafting.\n\n## Persistenza\n\n`GameData.materialStorage` usa `SavedMaterialStorageData` / `SavedMaterialStackData`, preferendo `definitionId` con `assetName` come fallback legacy.\n\n`PlayerStats` possiede l'istanza runtime e gestisce import/export. Esiste ancora un vecchio `SavedStorageData` letto solo per migrazione.\n\n## Consumers\n\nIl sistema magic legge `MaterialStorage` per verificare requisiti recipe; il blacksmith può usare lo stesso modello di materiali per crafting/upgrade.\n\nVedi [[Arcadia — Magic Progression & Preparation]], [[Arcadia — Blacksmith & Crafting]] e [[Arcadia — Run State & Save]].\n\n### Fonti\n\n- `Assets/_Project/Scripts/System/MaterialStorageState.cs`\n- `Assets/_Project/Scripts/System/GameData.cs`\n- `Assets/_Project/Scripts/Player/PlayerStats.cs`\n- `Assets/_Project/Scripts/Magic/MagicManager.cs`"
+    },
+    {
+      "slug": "dungeon-modifiers",
+      "title": "Arcadia — Dungeon Modifiers, Shrines & Outcomes",
+      "type": "NOTE",
+      "tags": [
+        "arcadia",
+        "dungeon",
+        "modifiers",
+        "shrines"
+      ],
+      "parentSlugs": [
+        "arcadia"
+      ],
+      "content": "# Dungeon Modifiers, Shrines & Outcomes\n\nI modifier di run modellano blessing, curse e pact senza mutare permanentemente gli attributi base del personaggio.\n\n## Definition\n\n`RunModifierDefinition` ha `stableId`, kind, strategia di stacking e uno o più effect. Le strategie sono `Unique`, `Stack` e `Replace`.\n\nEffetti correnti:\n\n- damage dealt multiplier\n- damage taken multiplier\n- max health multiplier\n- max stamina multiplier\n- max mana multiplier\n- stamina regeneration multiplier\n- flask healing multiplier\n\n## Runtime authority\n\n`RunModifierController` è autorevole dopo il restore. Le definition servono per aggiungere nuovi record; lo stato runtime serializzato mantiene stack ed effetti concreti.\n\nQuando cambia un modifier, il controller sincronizza `DungeonRunStateController` e forza `PlayerStats.RecalculateDerivedStats(true)`.\n\n## Shrines e outcomes\n\n`ShrineInteraction` applica modifier opzionalmente dietro requirement/costo. `DungeonOutcome` può produrre modifier, item, loot pool, karma, story flag, heal, flask restore o magic recipe.\n\nLa risoluzione degli outcome usa stream deterministici legati alla room/run, così una scelta authored resta riproducibile.\n\nVedi [[Arcadia — Dungeon Framework]], [[Arcadia — Run State & Save]], [[Arcadia — Narrative State & Story Flags]].\n\n### Fonti\n\n- `Assets/_Project/Scripts/Dungeon/RunModifiers.cs`\n- `Assets/_Project/Scripts/Rooms/DungeonCostsOutcomes.cs`\n- `Assets/_Project/Scripts/Rooms/RoomInteractions.cs`"
+    },
+    {
+      "slug": "dungeon-challenges-rewards",
+      "title": "Arcadia — Dungeon Challenges & Rewards",
+      "type": "NOTE",
+      "tags": [
+        "arcadia",
+        "dungeon",
+        "challenge",
+        "rewards"
+      ],
+      "parentSlugs": [
+        "arcadia"
+      ],
+      "content": "# Dungeon Challenges & Rewards\n\nIl dungeon moderno tratta challenge e reward come rule authored separate, collegate tramite ID quando necessario.\n\n## ChallengeRoomRule\n\nLe modalità correnti includono:\n\n- Wave\n- TimedKill\n- PerfectCombat\n- NoHealing\n\nUna challenge può partire su interazione o ingresso player. Usa `ChallengeWaveSpawnPoint` e `SpawnTable`; in assenza di pool locali può ricadere sui pool del `DungeonFloorDefinition`.\n\nIl failure può completare la room o consentire retry. In caso di retry gli enemy owned dalla challenge vengono puliti e lo stato del tentativo viene resettato.\n\n## Rewards\n\n`LootPoolDefinition` descrive pool di reward. Il flow moderno usa `RoomRewardRule` e un `DungeonRewardOfferAnchor` per ogni pedestal fisico. Le offerte sono deterministiche e il player sceglie esplicitamente: non esiste auto-claim della prima offerta.\n\n`requiredRuleId` permette di rendere un reward dipendente dal successo di una challenge/combat rule specifica.\n\n## Legacy\n\nLe vecchie `RoomData.rewards` restano supportate via `LegacyRoomRewardRule`, ma non vanno configurate insieme a un moderno `RoomRewardRule` sullo stesso prefab.\n\nVedi [[Arcadia — Rooms, Rules & Persistence]], [[Arcadia — Dungeon Modifiers, Shrines & Outcomes]] e [[Arcadia — Legacy Treasure Chests]].\n\n### Fonti\n\n- `Assets/_Project/Scripts/Rooms/ChallengeRoomRule.cs`\n- `Assets/_Project/Scripts/Dungeon/LootPoolDefinition.cs`\n- `Assets/_Project/DUNGEON_FRAMEWORK.md`"
+    },
+    {
+      "slug": "interactions-interfaces",
+      "title": "Arcadia — Interactions & Gameplay Interfaces",
+      "type": "NOTE",
+      "tags": [
+        "arcadia",
+        "interfaces",
+        "interaction",
+        "architecture"
+      ],
+      "parentSlugs": [
+        "arcadia"
+      ],
+      "content": "# Interactions & Gameplay Interfaces\n\nArcadia usa interfacce semplici per disaccoppiare il player dai sistemi interagibili/danneggiabili.\n\n## IInteractable\n\n`IInteractable` espone `Interact(GameObject player)` e `GetPrompt()`. È implementata da porte, chest, NPC/dialogue, shrine, challenge e altre interazioni authored.\n\n`PlayerInteraction` è il punto di ingresso del player: rileva il target e invoca l'interfaccia senza conoscere il tipo concreto.\n\n## IDamageable\n\n`IDamageable` è il confine comune per applicare damage a player/enemy e altri target compatibili. Il calcolo specifico resta nel proprietario dello stato (`PlayerStats`, `EnemyHealth`, ecc.).\n\n## Inventory slot handling\n\n`IInventorySlotHandler` consente a inventory, equipment, shop e blacksmith di riusare `InventorySlot` senza incorporare nel componente slot la logica di ogni schermata.\n\n## Regola\n\nLe interfacce sono boundary, non service locator: evitare di aggiungere metodi specifici di un singolo sistema solo per bypassare la corretta ownership.\n\nVedi [[Arcadia — Player Runtime]], [[Arcadia — Dialogue & NPC Services]], [[Arcadia — Economy & Shop]] e [[Arcadia — Blacksmith & Crafting]].\n\n### Fonti\n\n- `Assets/_Project/Scripts/Interface/IInteractable.cs`\n- `Assets/_Project/Scripts/Interface/IDamageable.cs`\n- `Assets/_Project/Scripts/Interface/IInventorySlotHandler.cs`\n- `Assets/_Project/Scripts/Player/PlayerInteraction.cs`"
+    },
+    {
+      "slug": "narrative-state",
+      "title": "Arcadia — Narrative State & Story Flags",
+      "type": "NOTE",
+      "tags": [
+        "arcadia",
+        "narrative",
+        "story-flags",
+        "dialogue"
+      ],
+      "parentSlugs": [
+        "arcadia"
+      ],
+      "content": "# Narrative State & Story Flags\n\nLa narrativa persistente è volutamente più piccola del dialogue graph: salva flag e history necessarie a decidere cosa mostrare in futuro.\n\n## Story flags\n\n`PlayerStats` mantiene un set case-insensitive di story flag e lo esporta in `GameData.storyFlags`. Sono usati da dialogue, dungeon outcome e altri sistemi come condizioni persistenti.\n\n## Dialogue history\n\n`SavedDialogueHistoryData` conserva:\n\n- `readNodeKeys`\n- `selectedChoiceKeys`\n\nQuesta history supporta condizioni su nodi letti/choice selezionate e indicatori di lettura senza serializzare l'intero stato UI.\n\n## Ownership\n\n`PlayerStats` è il proprietario dello snapshot persistente; `DialogueManager` consulta e aggiorna tramite API controllate. Le UI dialogo non devono scrivere direttamente `GameData`.\n\n## Once-per-run vs once-per-save\n\nNon usare indiscriminatamente story flag per tutto: gli eventi `OncePerRun` appartengono a `DungeonRunStateController`, mentre gli eventi che devono sopravvivere tra run possono usare story flag/save state.\n\nVedi [[Arcadia — Dialogue & NPC Services]], [[Arcadia — Dungeon Modifiers, Shrines & Outcomes]] e [[Arcadia — Run State & Save]].\n\n### Fonti\n\n- `Assets/_Project/Scripts/System/GameData.cs`\n- `Assets/_Project/Scripts/Player/PlayerStats.cs`\n- `Assets/_Project/Scripts/Dialogue/README_DialogueSystem.md`"
+    },
+    {
+      "slug": "npc-hub-services",
+      "title": "Arcadia — NPC & Hub Services",
+      "type": "NOTE",
+      "tags": [
+        "arcadia",
+        "npc",
+        "hub",
+        "services"
+      ],
+      "parentSlugs": [
+        "arcadia"
+      ],
+      "content": "# NPC & Hub Services\n\nI servizi NPC sono integrati con il dialogue system ma rimangono componenti gameplay indipendenti.\n\n## Registry\n\n`NpcServiceRegistry` registra implementazioni `INpcService` per `ServiceId` case-insensitive. I servizi derivati da `NpcServiceBehaviour` si registrano in `OnEnable` e si rimuovono in `OnDisable`, evitando reference stale dopo scene change.\n\n## Context\n\nIl service riceve un `NpcServiceContext` con riferimenti runtime pertinenti, inclusi player stats/inventory. Questo evita dipendenze hardcoded del dialogue manager da Blacksmith, Merchant o altri servizi concreti.\n\n## Esempi\n\n- blacksmith → [[Arcadia — Blacksmith & Crafting]]\n- merchant/shop → [[Arcadia — Economy & Shop]]\n- futuri servizi Hub possono usare lo stesso boundary senza modificare il core del dialogue.\n\n## Interaction\n\n`NPCInteractable` apre un `DialogueProfile`; una choice/action può poi eseguire `OpenService`. Il servizio decide autonomamente il proprio modal state e la propria atomicità.\n\nVedi [[Arcadia — Dialogue & NPC Services]], [[Arcadia — Interactions & Gameplay Interfaces]] e [[Arcadia — Scenes & Runtime References]].\n\n### Fonti\n\n- `Assets/_Project/Scripts/Dialogue/Runtime/NpcServiceRegistry.cs`\n- `Assets/_Project/Scripts/Dialogue/README_DialogueSystem.md`\n- `Assets/_Project/Scripts/Blacksmith/BlacksmithService.cs`"
+    },
+    {
+      "slug": "legacy-treasure-chests",
+      "title": "Arcadia — Legacy Treasure Chests",
+      "type": "NOTE",
+      "tags": [
+        "arcadia",
+        "loot",
+        "treasure",
+        "legacy"
+      ],
+      "parentSlugs": [
+        "arcadia"
+      ],
+      "content": "# Legacy Treasure Chests\n\nArcadia conserva un sistema chest authored separato dal nuovo reward framework delle dungeon room.\n\n## TreasureChest\n\n`TreasureChest` implementa `IInteractable`, usa collider/layer di interazione, può essere one-shot e gestisce animator/visual closed-open.\n\n## Loot table\n\n`TreasureChestLootTable` contiene entry pesate. Storicamente la chest seleziona un singolo reward e lo aggiunge direttamente al `PlayerInventory`; il peso è relativo, non un multi-roll indipendente.\n\nI reward supportati includono generic item, usable, magic, armor e weapon.\n\n## Animator gotcha\n\nI prefab legacy si aspettano convenzioni `Closed` / `Open`; la clip Open non deve loopare se il visual deve restare aperto.\n\n## Relazione col dungeon moderno\n\nPer nuove treasure room basate sul framework attuale preferire `LootPoolDefinition` + `RoomRewardRule` + offer anchor, descritti in [[Arcadia — Dungeon Challenges & Rewards]].\n\nNon migrare automaticamente chest esistenti senza verificare prefab, animazioni e UX: sono due flussi con semantiche differenti.\n\n### Fonti\n\n- `Assets/_Project/Scripts/Rooms/TreasureChest.cs`\n- `Assets/_Project/Scripts/Items/TreasureChestLootTable.cs`\n- `handoff.md` sezioni treasure chest"
     }
   ]
 }
