@@ -1,6 +1,8 @@
 # Deploy di main con Jenkins
 
-Il job `Synapse-main` carica il Jenkinsfile da `https://github.com/elfo399/Synapse.git`, branch `*/main`. Un controllo SCM ogni cinque minuti avvia una build solo se ci sono nuovi commit; **Build Now / Esegui adesso** consente l’avvio manuale. Non servono credenziali GitHub per leggere questo repository pubblico.
+Il job `Synapse-main` carica il Jenkinsfile da `https://github.com/elfo399/Synapse.git`, branch `*/main`. Un webhook GitHub avvisa Jenkins a ogni push: il job verifica se main contiene nuovi commit e avvia subito la build, senza attendere un controllo periodico. Una commit soltanto locale non genera eventi. **Build Now / Esegui adesso** consente l’avvio manuale. Non servono credenziali GitHub per leggere questo repository pubblico.
+
+Il webhook del repository invia soltanto gli eventi `push` a `https://jenkins.elfo3.dev/github-webhook/`, in JSON e con verifica TLS attiva. Jenkins verifica la firma HMAC SHA-256 con la credenziale segreta `synapse-github-webhook`; il segreto non è nel repository. La pipeline dichiara `githubPush()` e non ha più una pianificazione `pollSCM`. Per diagnosticare un mancato avvio, controllare **Settings → Webhooks → Recent deliveries** su GitHub e il log del trigger GitHub del job. Un evento su un altro branch non distribuisce quel branch: il job rimane vincolato a main.
 
 La pipeline registra il commit e usa una chiave SSH dedicata per richiamare lo script di deploy sul Raspberry. La chiave è limitata dal server al comando `deploy <commit>`: Jenkins non riceve il socket Docker né una shell SSH generica. L’identità del server è verificata con una chiave host salvata nelle credenziali Jenkins.
 

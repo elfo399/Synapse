@@ -8,7 +8,7 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '20'))
     }
     triggers {
-        pollSCM('H/5 * * * *')
+        githubPush()
     }
     stages {
         stage('Scarica main') {
