@@ -16,7 +16,7 @@ import "./login.css";
 
 export function LoginForm() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -27,12 +27,15 @@ export function LoginForm() {
     setBusy(true);
     setError("");
     try {
-      const result = await authClient.signIn.email({ email, password });
+      const login = identifier.trim();
+      const result = login.includes("@")
+        ? await authClient.signIn.email({ email: login, password })
+        : await authClient.signIn.username({ username: login, password });
       if (result.error) {
         setError(
           result.error.status === 429
             ? "Troppi tentativi di accesso. Attendi un minuto e riprova."
-            : "Accesso non riuscito. Controlla email e password.",
+            : "Accesso non riuscito. Controlla nickname o email e password.",
         );
         return;
       }
@@ -57,17 +60,17 @@ export function LoginForm() {
         </header>
         <form className="login-form" onSubmit={submit} aria-busy={busy}>
           <label htmlFor="login-email">
-            Indirizzo email
+            Nickname o email
             <input
               id="login-email"
-              type="email"
+              type="text"
               autoComplete="username"
               autoCapitalize="none"
               spellCheck={false}
               required
-              placeholder="tu@esempio.it"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              placeholder="Il tuo nickname o indirizzo email"
+              value={identifier}
+              onChange={(event) => setIdentifier(event.target.value)}
             />
           </label>
           <label htmlFor="login-password">Password</label>

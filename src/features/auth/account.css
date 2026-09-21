@@ -1,0 +1,71 @@
+.account-page {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: var(--space-8) 0;
+}
+.account-heading h1 {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.7px;
+}
+.account-heading p,
+.account-security > p {
+  color: var(--text-muted);
+  margin-top: var(--space-2);
+}
+.account-identity {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  margin: var(--space-8) 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.account-identity dt {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.account-identity dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+.account-security h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 18px;
+  font-weight: 500;
+}
+.account-password-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-6);
+}
+.account-password-form label {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+.account-password-form input {
+  margin-bottom: var(--space-4);
+  min-height: 44px;
+}
+.account-password-form > .button {
+  align-self: flex-start;
+  margin-top: var(--space-4);
+}
+.account-saved {
+  color: var(--accent);
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+@media (max-width: 600px) {
+  .account-password-form input {
+    font-size: 16px;
+  }
+  .account-page {
+    padding-top: var(--space-4);
+  }
+}

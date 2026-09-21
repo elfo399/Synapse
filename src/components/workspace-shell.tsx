@@ -28,6 +28,7 @@ import {
   Plus,
   Search,
   Settings2,
+  UserRound,
   X,
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
@@ -55,6 +56,7 @@ const navigation = [
     { href: "/graph", label: "Grafo", icon: Network },
     { href: "/tags", label: "Etichette", icon: Hash },
     { href: "/archive", label: "Archivio", icon: Archive },
+    { href: "/account", label: "Account", icon: UserRound },
   ],
 ];
 function subscribeDensity(callback: () => void) {

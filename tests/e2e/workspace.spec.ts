@@ -18,7 +18,7 @@ test("private workspace: login, capture, process, graph, archive and logout", as
   });
   expect((await page.request.get("/api/items")).status()).toBe(401);
   await page
-    .getByLabel("Indirizzo email")
+    .getByLabel("Nickname o email")
     .fill(process.env.INITIAL_ADMIN_EMAIL!);
   await page
     .getByLabel("Password", { exact: true })

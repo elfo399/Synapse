@@ -1,4 +1,5 @@
 import { betterAuth } from "better-auth";
+import { username } from "better-auth/plugins";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { headers } from "next/headers";
 import { prisma } from "./db";
@@ -29,6 +30,8 @@ export const auth = betterAuth({
   baseURL,
   secret,
   database: prismaAdapter(prisma, { provider: "postgresql" }),
+  plugins: [username({ displayUsername: false })],
+  disabledPaths: ["/is-username-available"],
   emailAndPassword: {
     enabled: true,
     disableSignUp: true,
@@ -46,7 +49,11 @@ export const auth = betterAuth({
     storage: "database",
     window: 60,
     max: 100,
-    customRules: { "/sign-in/email": { window: 60, max: 10 } },
+    customRules: {
+      "/sign-in/email": { window: 60, max: 10 },
+      "/sign-in/username": { window: 60, max: 10 },
+      "/change-password": { window: 60, max: 5 },
+    },
   },
   telemetry: { enabled: false },
 });
