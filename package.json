@@ -25,7 +25,9 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:studio": "prisma studio",
     "docker:up": "docker compose up -d --build",
-    "docker:down": "docker compose down"
+    "docker:down": "docker compose down",
+    "knowledge:arcadia": "tsx scripts/import-knowledge-pack.ts arcadia",
+    "knowledge:arcadia:dry-run": "tsx scripts/import-knowledge-pack.ts arcadia --dry-run"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",
