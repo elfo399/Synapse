@@ -4,7 +4,7 @@ I knowledge pack importano dataset curati nel workspace Synapse usando gli stess
 
 ## Arcadia
 
-Il pack `arcadia` trasforma il repository Unity `elfo399/Arcadia` in una knowledge base tecnica collegata. Lo snapshot iniziale contiene 24 elementi: un `PROJECT` radice, un bookmark al repository, resource di contesto e note dedicate a dungeon, player, save, inventory, quest, dialogue, blacksmith, scene lifecycle, UI, tooling e validation.
+Il pack `arcadia` trasforma il repository Unity `elfo399/Arcadia` in una knowledge base tecnica collegata. Lo snapshot iniziale contiene 26 elementi: un `PROJECT` radice, un bookmark al repository, resource di contesto e note dedicate a dungeon, player, save, inventory, quest, dialogue, blacksmith, scene lifecycle, UI, tooling e validation.
 
 Il pack non importa texture, prefab, `.meta`, asset third-party, cache o l'intero codice sorgente. Conserva invece responsabilità, invarianti, flussi, rischi e path sorgente utili per ritrovare rapidamente il contesto.
 
