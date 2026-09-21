@@ -7,7 +7,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Archive,
-  ArrowLeft,
+  ChevronRight,
+  FileText,
+  Network,
+  Pencil,
   Check,
   CheckCheck,
   ExternalLink,
@@ -33,9 +36,15 @@ import {
   type ItemType,
 } from "./types";
 import { useRemote } from "./use-remote";
-import { MarkdownEditor } from "./markdown-editor";
+import { attachmentMarkdown, AttachmentPanel } from "./attachment-panel";
+import { uploadItem } from "./upload";
+import { RelatedTasks, relatedTasks } from "./related-tasks";
+import { getItemHref } from "@/domain/item-url";
+import type { AttachmentSummary } from "@/domain/attachments";
+import { MarkdownPreview, MarkdownEditor } from "./markdown-editor";
 import { RelationsPanel } from "./relations-panel";
 import "./document.css";
+import "./detail-workspace.css";
 
 export function ItemDetail({ id }: { id: string }) {
   const { data, loading, error, reload } = useRemote<{ item: ItemDetailType }>(
@@ -73,9 +82,22 @@ function ItemEditor({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [confirmation, setConfirmation] = useState("");
   const [createTitle, setCreateTitle] = useState<string | null>(null);
-  const [propertiesOpen, setPropertiesOpen] = useState(
-    item.inbox || ["TASK", "PROJECT"].includes(item.type),
+  const [propertiesOpen, setPropertiesOpen] = useState(false);
+  const [editing, setEditing] = useState(!item.content);
+  const contexts = item.outgoing.filter(
+    (relation) => relation.relationType === "PARENT",
   );
+  const parent = contexts[0]?.target;
+  const tasks = relatedTasks(item);
+  const showTasks =
+    tasks.length > 0 || ["PROJECT", "AREA", "RESOURCE"].includes(item.type);
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 1150px)");
+    const update = () => setPropertiesOpen(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
   const titleInput = useRef<HTMLTextAreaElement>(null);
   useLayoutEffect(() => {
     const area = titleInput.current;
@@ -148,6 +170,7 @@ function ItemEditor({
         },
       );
       setVersion(result.item.version);
+      router.replace(getItemHref(result.item), { scroll: false });
       setTags(result.item.tags.map((tag) => tag.name).join(", "));
       changed();
       reload();
@@ -204,6 +227,33 @@ function ItemEditor({
       setBusy(false);
     }
   }
+  function insertAttachment(file: AttachmentSummary) {
+    setContent((value) => value + "\n\n" + attachmentMarkdown(file));
+    setEditing(true);
+    document
+      .getElementById("contenuto")
+      ?.scrollIntoView({ behavior: "smooth" });
+  }
+  async function uploadIntoContent(files: File[]) {
+    setError("");
+    try {
+      const result = await uploadItem(
+        `/api/items/${item.id}/attachments`,
+        {},
+        files.map((file) => ({ key: crypto.randomUUID(), file, preview: "" })),
+      );
+      const existing = new Set(item.attachments?.map((file) => file.id));
+      const added = (result.item.attachments || []).filter(
+        (file) => !existing.has(file.id),
+      );
+      changed();
+      reload();
+      return added.map(attachmentMarkdown).join("\n\n");
+    } catch (error) {
+      setError(errorMessage(error));
+      throw error;
+    }
+  }
   async function createLinked() {
     if (!createTitle) return;
     setBusy(true);
@@ -239,16 +289,32 @@ function ItemEditor({
         }
       }}
     >
-      <div className="document-topline">
-        <Link
-          href={item.inbox ? "/inbox" : typeRoutes[item.type]}
-          className="text-link"
-        >
-          <ArrowLeft size={14} />
-          {item.inbox
-            ? "Torna agli elementi da organizzare"
-            : `Vedi ${typePluralLabels[item.type].toLocaleLowerCase("it-IT")}`}
-        </Link>
+      <div className="document-topline" id="panoramica">
+        <nav className="detail-breadcrumbs" aria-label="Percorso">
+          <Link
+            href={
+              parent
+                ? typeRoutes[parent.type]
+                : item.inbox
+                  ? "/inbox"
+                  : typeRoutes[item.type]
+            }
+          >
+            {parent
+              ? typePluralLabels[parent.type]
+              : item.inbox
+                ? "Da organizzare"
+                : typePluralLabels[item.type]}
+          </Link>
+          {parent && (
+            <>
+              <ChevronRight size={12} />
+              <Link href={getItemHref(parent)}>{parent.title}</Link>
+            </>
+          )}
+          <ChevronRight size={12} />
+          <span aria-current="page">{item.title}</span>
+        </nav>
         <div className="document-actions">
           <span
             className={`save-indicator ${dirty ? "unsaved" : ""}`}
@@ -305,7 +371,7 @@ function ItemEditor({
           {error}
         </p>
       )}
-      <article className="document-main">
+      <article className="document-workspace">
         <header className="document-title-area">
           <div className="document-meta">
             <TypeBadge type={type} />
@@ -358,123 +424,217 @@ function ItemEditor({
             <span>{item.url}</span>
           </a>
         )}
-        <MarkdownEditor
-          content={content}
-          onChange={setContent}
-          relations={item.outgoing}
-          onCreate={setCreateTitle}
-        />
-        {item.unresolvedWikilinks.length > 0 && (
-          <section className="document-unresolved">
-            <h2>Note da creare</h2>
-            <div>
-              {item.unresolvedWikilinks.map((value) => (
+        <nav className="detail-section-nav" aria-label="Sezioni dell’elemento">
+          <a href="#panoramica">Panoramica</a>
+          <a href="#contenuto">Contenuto</a>
+          <a href="#collegamenti">
+            Collegamenti{" "}
+            <span>{item.outgoing.length + item.incoming.length}</span>
+          </a>
+          {showTasks && (
+            <a href="#attivita">
+              Attività <span>{tasks.length}</span>
+            </a>
+          )}
+          <a href="#allegati">
+            Allegati <span>{item.attachments?.length || 0}</span>
+          </a>
+          <a href="#dettagli" onClick={() => setPropertiesOpen(true)}>
+            Dettagli
+          </a>
+        </nav>
+        <div className="detail-layout">
+          <div className="detail-main">
+            <section
+              className="detail-card detail-content-card"
+              id="contenuto"
+              aria-labelledby="content-heading"
+            >
+              <div className="detail-card-heading">
+                <h2 id="content-heading">
+                  <FileText size={17} />
+                  Contenuto
+                </h2>
                 <button
-                  key={value}
                   className="text-link"
-                  onClick={() => setCreateTitle(value)}
+                  onClick={() => setEditing((value) => !value)}
                 >
-                  <Plus size={13} />
-                  {value}
+                  <Pencil size={14} />
+                  {editing ? "Leggi" : "Modifica contenuto"}
                 </button>
-              ))}
-            </div>
-          </section>
-        )}
-        <RelationsPanel item={item} onReload={reload} />
-        <details
-          className="document-properties"
-          open={propertiesOpen}
-          onToggle={(event) => setPropertiesOpen(event.currentTarget.open)}
-        >
-          <summary>
-            <SlidersHorizontal size={14} />
-            <span>Proprietà</span>
-            <small>Tipo, etichette e dettagli</small>
-          </summary>
-          <div className="document-property-fields">
-            <label>
-              Tipo di elemento
-              <AppSelect
-                aria-label="Tipo di elemento"
-                value={type}
-                onValueChange={(nextValue) => {
-                  const next = nextValue as ItemType;
-                  setType(next);
-                  setStatus(statusesFor(next)[0]);
-                }}
-                options={itemTypes.map((value) => ({
-                  value,
-                  label: typeLabels[value],
-                }))}
-              />
-            </label>
-            {["TASK", "PROJECT"].includes(type) && (
-              <label>
-                Stato
-                <AppSelect
-                  aria-label="Stato"
-                  value={status}
-                  onValueChange={setStatus}
-                  options={statusesFor(type).map((value) => ({
-                    value,
-                    label: statusLabels[value],
-                  }))}
+              </div>
+              {editing ? (
+                <MarkdownEditor
+                  content={content}
+                  onChange={setContent}
+                  relations={item.outgoing}
+                  onCreate={setCreateTitle}
+                  onUpload={uploadIntoContent}
                 />
-              </label>
-            )}
-            <label className="document-tag-field">
-              Etichette
-              <input
-                value={tags}
-                onChange={(event) => setTags(event.target.value)}
-                placeholder="idee, lavoro, letture"
-              />
-              <span className="field-hint">Separate da una virgola.</span>
-            </label>
-            {type === "BOOKMARK" && (
-              <label className="document-url-field">
-                URL del preferito
-                <input
-                  type="url"
-                  value={url}
-                  onChange={(event) => setUrl(event.target.value)}
-                  placeholder="https://example.com"
+              ) : (
+                <MarkdownPreview
+                  content={content}
+                  relations={item.outgoing}
+                  onCreate={setCreateTitle}
                 />
-              </label>
-            )}
-            {type === "TASK" && (
-              <label>
-                Scadenza
-                <input
-                  type="date"
-                  value={dueAt}
-                  onChange={(event) => setDueAt(event.target.value)}
-                />
-              </label>
-            )}
+              )}
+              {item.unresolvedWikilinks.length > 0 && (
+                <section className="document-unresolved">
+                  <h2>Note da creare</h2>
+                  <div>
+                    {item.unresolvedWikilinks.map((value) => (
+                      <button
+                        key={value}
+                        className="text-link"
+                        onClick={() => setCreateTitle(value)}
+                      >
+                        <Plus size={13} />
+                        {value}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </section>
+            <RelationsPanel item={item} onReload={reload} />
+            <RelatedTasks item={item} onReload={reload} />
+            <AttachmentPanel
+              itemId={item.id}
+              attachments={item.attachments || []}
+              onReload={reload}
+              onInsert={insertAttachment}
+            />
           </div>
-          <p className="document-created">
-            Creato il {dateLabel(item.createdAt)}
-          </p>
-        </details>
-        <footer className="document-management">
-          <button className="text-link" disabled={busy} onClick={archive}>
-            {item.archivedAt ? <RotateCcw size={14} /> : <Archive size={14} />}
-            {item.archivedAt ? "Ripristina elemento" : "Archivia elemento"}
-          </button>
-          <button
-            className="text-link document-delete"
-            disabled={busy}
-            onClick={() => {
-              setConfirmation("");
-              setDeleteOpen(true);
-            }}
-          >
-            <Trash2 size={14} />
-            Elimina definitivamente
-          </button>
-        </footer>
+          <aside className="detail-sidebar" aria-label="Informazioni e azioni">
+            <details
+              className="document-properties detail-card"
+              id="dettagli"
+              open={propertiesOpen}
+              onToggle={(event) => setPropertiesOpen(event.currentTarget.open)}
+            >
+              <summary>
+                <SlidersHorizontal size={14} />
+                <span>Dettagli</span>
+              </summary>
+              <div className="document-property-fields">
+                <label>
+                  Tipo di elemento
+                  <AppSelect
+                    aria-label="Tipo di elemento"
+                    value={type}
+                    onValueChange={(nextValue) => {
+                      const next = nextValue as ItemType;
+                      setType(next);
+                      setStatus(statusesFor(next)[0]);
+                    }}
+                    options={itemTypes.map((value) => ({
+                      value,
+                      label: typeLabels[value],
+                    }))}
+                  />
+                </label>
+                {["TASK", "PROJECT"].includes(type) && (
+                  <label>
+                    Stato
+                    <AppSelect
+                      aria-label="Stato"
+                      value={status}
+                      onValueChange={setStatus}
+                      options={statusesFor(type).map((value) => ({
+                        value,
+                        label: statusLabels[value],
+                      }))}
+                    />
+                  </label>
+                )}
+                <label className="document-tag-field">
+                  Etichette
+                  <input
+                    value={tags}
+                    onChange={(event) => setTags(event.target.value)}
+                    placeholder="idee, lavoro, letture"
+                  />
+                  <span className="field-hint">Separate da una virgola.</span>
+                </label>
+                {type === "BOOKMARK" && (
+                  <label className="document-url-field">
+                    URL del preferito
+                    <input
+                      type="url"
+                      value={url}
+                      onChange={(event) => setUrl(event.target.value)}
+                      placeholder="https://example.com"
+                    />
+                  </label>
+                )}
+                {type === "TASK" && (
+                  <label>
+                    Scadenza
+                    <input
+                      type="date"
+                      value={dueAt}
+                      onChange={(event) => setDueAt(event.target.value)}
+                    />
+                  </label>
+                )}
+              </div>
+              <p className="document-created">
+                Creato il {dateLabel(item.createdAt)}
+                <br />
+                Modificato il {dateLabel(item.updatedAt)}
+              </p>
+            </details>
+            {contexts.length > 0 && (
+              <section className="detail-card detail-context">
+                <h2>Contesto</h2>
+                {contexts.map((relation) => (
+                  <Link href={getItemHref(relation.target)} key={relation.id}>
+                    <TypeBadge type={relation.target.type} />
+                    <span>{relation.target.title}</span>
+                  </Link>
+                ))}
+              </section>
+            )}
+            <footer className="document-management detail-card">
+              <h2>Azioni rapide</h2>
+              <button
+                className="text-link"
+                onClick={() => {
+                  setEditing(true);
+                  document
+                    .getElementById("contenuto")
+                    ?.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
+                <Pencil size={14} />
+                Modifica contenuto
+              </button>
+              <Link className="text-link" href={`/graph?focus=${item.id}`}>
+                <Network size={14} />
+                Apri nel grafo
+              </Link>
+              <button className="text-link" disabled={busy} onClick={archive}>
+                {item.archivedAt ? (
+                  <RotateCcw size={14} />
+                ) : (
+                  <Archive size={14} />
+                )}
+                {item.archivedAt ? "Ripristina elemento" : "Archivia elemento"}
+              </button>
+              <button
+                className="text-link document-delete"
+                disabled={busy}
+                onClick={() => {
+                  setConfirmation("");
+                  setDeleteOpen(true);
+                }}
+              >
+                <Trash2 size={14} />
+                Elimina definitivamente
+              </button>
+            </footer>
+          </aside>
+        </div>
       </article>
       <Modal
         open={deleteOpen}

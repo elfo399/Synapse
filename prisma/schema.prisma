@@ -44,6 +44,7 @@ model User {
   accounts Account[]
   items Item[]
   tags Tag[]
+  attachments Attachment[]
 }
 
 model Session {
@@ -118,6 +119,7 @@ model Item {
   outgoing ItemRelation[] @relation("SourceRelations")
   incoming ItemRelation[] @relation("TargetRelations")
   wikiReferences WikiReference[]
+  attachments Attachment[]
   @@unique([userId, id])
   @@unique([userId, titleNormalized])
   @@index([userId, archivedAt, updatedAt(sort: Desc)])
@@ -173,4 +175,26 @@ model WikiReference {
   source Item @relation(fields: [userId, sourceItemId], references: [userId, id], onDelete: Cascade)
   @@unique([sourceItemId, titleNormalized])
   @@index([userId, titleNormalized])
+}
+
+model Attachment {
+  id String @id @default(cuid())
+  userId String
+  itemId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item Item @relation(fields: [userId, itemId], references: [userId, id], onDelete: Cascade)
+  originalName String @db.VarChar(200)
+  storageKey String @unique @db.VarChar(64)
+  mimeType String @db.VarChar(100)
+  size Int
+  sha256 String @db.VarChar(64)
+  duration Float?
+  createdAt DateTime @default(now())
+  @@index([userId, itemId, createdAt])
+}
+
+// Durable file cleanup after a committed metadata/item deletion.
+model AttachmentDeletion {
+  storageKey String @id @db.VarChar(64)
+  createdAt DateTime @default(now())
 }

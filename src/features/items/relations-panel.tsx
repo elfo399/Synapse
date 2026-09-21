@@ -1,5 +1,7 @@
 ﻿"use client";
 
+import { getItemHref } from "@/domain/item-url";
+
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
@@ -138,7 +140,7 @@ export function RelationsPanel({
     return (
       <div className="document-relation-row" key={relation.id}>
         <TypeIcon type={related.type} size={15} />
-        <Link href={`/items/${related.id}`}>
+        <Link href={getItemHref(related)}>
           <span>{related.title}</span>
           {related.archivedAt && <small>Archiviato</small>}
         </Link>
@@ -156,13 +158,13 @@ export function RelationsPanel({
             <Unlink size={13} />
           </button>
         )}
-        {direction === "outgoing" && (
+        {
           <small className="document-relation-kind">
             {relation.wikilink
               ? "Nel testo"
               : relationLabels[relation.relationType]}
           </small>
-        )}
+        }
       </div>
     );
   }
@@ -170,7 +172,8 @@ export function RelationsPanel({
   return (
     <>
       <section
-        className="document-connections"
+        className="document-connections detail-card"
+        id="collegamenti"
         aria-labelledby="document-connections-heading"
       >
         <div className="document-connections-heading">

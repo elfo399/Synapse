@@ -87,7 +87,7 @@
   gap: var(--space-3);
   margin-top: var(--space-6);
   padding-top: var(--space-4);
-  border-top: 1px solid var(--border);
+  border-top: 0;
 }
 .capture-details-button {
   display: inline-flex;
@@ -171,5 +171,76 @@
 @media (prefers-reduced-motion: reduce) {
   .capture-details-button > svg:last-child {
     transition: none;
+  }
+}
+.universal-capture {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.universal-capture .capture-title-label,
+.universal-capture .capture-content-label {
+  display: block;
+}
+.universal-capture .capture-title {
+  border: 0;
+  background: transparent;
+  padding: 5px 0;
+  font-size: 19px;
+}
+.universal-capture textarea {
+  min-height: 112px;
+  padding: 12px 0;
+  border: 0;
+  background: transparent;
+  resize: vertical;
+  font-size: 15px;
+  line-height: 1.7;
+}
+.capture-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border-block: 1px solid var(--border);
+  padding-block: 10px;
+}
+.capture-modes button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 8px 10px;
+  font-size: 12px;
+}
+.capture-modes button[aria-pressed="true"] {
+  background: var(--surface-active);
+  color: var(--accent);
+}
+.capture-embedded {
+  padding: 16px 20px;
+}
+.thought-composer .capture-embedded textarea {
+  padding: 4px 0;
+}
+.capture-embedded .capture-bottom-line {
+  margin-top: 0;
+}
+.universal-capture .capture-controls {
+  margin-top: 0;
+}
+@media (max-width: 600px) {
+  .capture-modes {
+    gap: 2px;
+  }
+  .capture-modes button {
+    font-size: 11px;
+    padding: 8px 6px;
+    gap: 4px;
+  }
+  .capture-embedded {
+    padding: 14px;
   }
 }

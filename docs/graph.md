@@ -2,11 +2,11 @@
 
 ## Library decision
 
-| Candidate | Fit | Tradeoff |
-| --- | --- | --- |
-| react-force-graph-3d 1.29.1 / Three.js 0.186.0 | WebGL rendering, a force-directed layout in three dimensions, camera controls, custom node shapes, and selection callbacks. | Requires WebGL, explicit GPU resource cleanup, and a separate accessible item list. |
-| Cytoscape.js 3.34.3 | Existing 2D canvas renderer with selection, pan/zoom, built-in force layout, and type shapes. | Retained as the optional 2D view and fallback; it does not provide the requested spatial 3D view. |
-| React Flow | React node editors, HTML node content, and diagram interactions. | Suited to 2D diagrams; a separate force engine and renderer would be needed for this 3D view. |
+| Candidate                                      | Fit                                                                                                                         | Tradeoff                                                                                          |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| react-force-graph-3d 1.29.1 / Three.js 0.186.0 | WebGL rendering, a force-directed layout in three dimensions, camera controls, custom node shapes, and selection callbacks. | Requires WebGL, explicit GPU resource cleanup, and a separate accessible item list.               |
+| Cytoscape.js 3.34.3                            | Existing 2D canvas renderer with selection, pan/zoom, built-in force layout, and type shapes.                               | Retained as the optional 2D view and fallback; it does not provide the requested spatial 3D view. |
+| React Flow                                     | React node editors, HTML node content, and diagram interactions.                                                            | Suited to 2D diagrams; a separate force engine and renderer would be needed for this 3D view.     |
 
 The default is now a true 3D knowledge graph, following the explicit request for spatial exploration. `react-force-graph-3d` supplies the force simulation and Three.js/WebGL renderer; nodes occupy three-dimensional coordinates and the camera orbits the graph. The existing Cytoscape renderer remains available through the **2D** button, and the application falls back to it automatically when WebGL is unavailable. This choice follows the interaction requirement and documented capabilities; no comparative performance benchmark is claimed. References: [react-force-graph's official repository](https://github.com/vasturiano/react-force-graph), [Cytoscape documentation](https://js.cytoscape.org/), and [React Flow layout integrations](https://reactflow.dev/learn/layouting/layouting).
 
@@ -33,16 +33,16 @@ Backlinks are incoming relations on the target; no reverse edge is fabricated. `
 
 The dark 3D canvas uses restrained edges and distinct node shapes/colors by Item type. Small graphs display labels throughout; larger graphs show labels for selected or hovered nodes to reduce clutter. Users can select nodes and open the selected Item. A details panel supplies full title, type, tags, timestamps, outgoing relations, backlinks, and navigation in either rendering mode.
 
-| 3D control | Action |
-| --- | --- |
-| Mouse drag | Orbit the camera around the graph. |
-| Right mouse drag | Pan the camera. |
-| Mouse wheel | Zoom. |
-| Touch drag | Rotate. |
-| Pinch / two-finger drag | Zoom / pan. |
-| Arrow keys while the graph stage has focus | Rotate or tilt the camera. |
-| `+` / `-` / `0` while the graph stage has focus | Zoom in / zoom out / fit the graph. |
-| Visible controls | Rotate, tilt, zoom, fit, and reset the view. |
+| 3D control                                      | Action                                       |
+| ----------------------------------------------- | -------------------------------------------- |
+| Mouse drag                                      | Orbit the camera around the graph.           |
+| Right mouse drag                                | Pan the camera.                              |
+| Mouse wheel                                     | Zoom.                                        |
+| Touch drag                                      | Rotate.                                      |
+| Pinch / two-finger drag                         | Zoom / pan.                                  |
+| Arrow keys while the graph stage has focus      | Rotate or tilt the camera.                   |
+| `+` / `-` / `0` while the graph stage has focus | Zoom in / zoom out / fit the graph.          |
+| Visible controls                                | Rotate, tilt, zoom, fit, and reset the view. |
 
 The **2D** and **3D** buttons switch renderers. The 2D view keeps its pan/zoom, fit, reset, and selection controls. Controls and the companion item list use ordinary keyboard-accessible elements; navigating the canvas is not required to reach an Item.
 

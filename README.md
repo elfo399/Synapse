@@ -22,11 +22,21 @@ L’interfaccia lascia spazio ai contenuti: colori scuri neutri, controlli discr
 
 ### Cattura un pensiero, organizzalo dopo
 
-Annota un’idea dalla Home o apri la cattura rapida. Non devi decidere subito dove metterla: la sezione **Da organizzare** raccoglie ciò che vuoi sistemare in un secondo momento.
+Salva **testo, link, immagini, audio e documenti** dalla Home o dalla cattura universale. Incolla uno screenshot, trascina un PDF o registra un memo vocale con pausa e anteprima. Il titolo è facoltativo: Synapse lo ricava dal contenuto.
+
+Non devi decidere subito dove mettere tutto: la sezione **Da organizzare** raccoglie ciò che vuoi sistemare in un secondo momento. Premi **N** per catturare una nuova idea.
 
 ### Scrivi senza perdere il filo
 
-Un editor Markdown con anteprima e vista affiancata, titoli leggibili e proprietà che puoi aprire solo quando servono. Digita `[[` per collegare un’altra nota mentre scrivi: i collegamenti in entrata ti mostrano anche quali contenuti rimandano a quello che stai leggendo.
+Contenuto, collegamenti, attività e allegati hanno ciascuno il proprio spazio. Leggi una nota oppure passa all’editor Markdown, con anteprima e vista affiancata. Digita `[[` per collegare un’altra nota mentre scrivi: i collegamenti in entrata ti mostrano anche quali contenuti rimandano a quello che stai leggendo.
+
+Le pagine hanno indirizzi leggibili che continuano a funzionare anche quando cambi titolo. I dettagli restano a lato sul desktop e si aprono quando servono sul telefono.
+
+### Conserva anche ciò che non è testo
+
+Allega immagini, PDF, documenti di testo e registrazioni alle tue idee. Guarda le immagini, ascolta i memo e scarica i file direttamente dalla nota. Puoi inserire un’immagine nel testo anche incollandola nell’editor.
+
+Gli allegati sono **privati**, come le tue note, e vengono conservati sulla tua istanza. Dal telefono puoi scegliere una foto o usare la fotocamera; la registrazione vocale richiede un browser compatibile e una connessione sicura.
 
 ### Dai un posto a ciò che conta
 

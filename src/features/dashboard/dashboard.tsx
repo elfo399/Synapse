@@ -1,10 +1,11 @@
 ﻿"use client";
 
+import { getItemHref } from "@/domain/item-url";
+
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
-  ArrowUp,
   Check,
   Circle,
   Folder,
@@ -19,6 +20,7 @@ import { useWorkspace } from "@/components/workspace-context";
 import { api, changed, errorMessage } from "@/features/items/api";
 import { dateLabel } from "@/features/items/types";
 import { useRemote } from "@/features/items/use-remote";
+import { UniversalCaptureForm } from "@/features/items/capture-dialog";
 import "./dashboard.css";
 
 const subscribeToDate = (notify: () => void) => {
@@ -38,37 +40,7 @@ export function Dashboard() {
     useRemote<DashboardData>("/api/dashboard");
   const { notify, capture, name } = useWorkspace();
   const date = useSyncExternalStore(subscribeToDate, today, () => "");
-  const [thought, setThought] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [captureError, setCaptureError] = useState("");
   const [pendingTask, setPendingTask] = useState<string | null>(null);
-
-  async function quickCapture(event: React.FormEvent) {
-    event.preventDefault();
-    if (!thought.trim() || saving) return;
-    setSaving(true);
-    setCaptureError("");
-    try {
-      const lines = thought.trim().split("\n");
-      await api("/api/items", {
-        method: "POST",
-        body: JSON.stringify({
-          title: lines[0].slice(0, 200),
-          content:
-            lines[0].length > 200 ? thought.trim() : lines.slice(1).join("\n"),
-          type: "NOTE",
-          inbox: true,
-        }),
-      });
-      setThought("");
-      changed();
-      notify("Idea salvata tra gli elementi da organizzare.");
-    } catch (error) {
-      setCaptureError(errorMessage(error));
-    } finally {
-      setSaving(false);
-    }
-  }
 
   async function completeTask(id: string) {
     setPendingTask(id);
@@ -103,46 +75,7 @@ export function Dashboard() {
       </header>
       <section className="thought-composer" aria-labelledby="thought-heading">
         <h2 id="thought-heading">Cosa vuoi ricordare?</h2>
-        <form onSubmit={quickCapture}>
-          <label htmlFor="quick-capture" className="sr-only">
-            Annotazione rapida
-          </label>
-          <textarea
-            id="quick-capture"
-            placeholder="Un pensiero, un’idea, un collegamento…"
-            rows={3}
-            value={thought}
-            onChange={(event) => setThought(event.target.value)}
-            onKeyDown={(event) => {
-              if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
-                event.preventDefault();
-                event.currentTarget.form?.requestSubmit();
-              }
-            }}
-          />
-          <div className="thought-composer-footer">
-            <span>
-              Da organizzare più tardi <kbd>Ctrl / ⌘ ↵</kbd>
-            </span>
-            <button
-              className="button button-primary"
-              type="submit"
-              disabled={saving || !thought.trim()}
-            >
-              {saving ? (
-                <LoaderCircle size={15} className="spin" />
-              ) : (
-                <ArrowUp size={15} />
-              )}
-              Salva il pensiero
-            </button>
-          </div>
-        </form>
-        {captureError && (
-          <p role="alert" className="form-error">
-            {captureError}
-          </p>
-        )}
+        <UniversalCaptureForm embedded />
       </section>
       {error ? (
         <ErrorState message={error} retry={reload} />
@@ -182,7 +115,7 @@ export function Dashboard() {
                             </>
                           )}
                         </button>
-                        <Link href={`/items/${task.id}`}>
+                        <Link href={getItemHref(task)}>
                           <span>{task.title}</span>
                           {task.dueAt && (
                             <small>Scadenza {dateLabel(task.dueAt)}</small>
@@ -216,7 +149,7 @@ export function Dashboard() {
                   <div className="home-recent-list">
                     {data.recentItems.slice(0, 5).map((item) => (
                       <Link
-                        href={`/items/${item.id}`}
+                        href={getItemHref(item)}
                         className="home-recent-item"
                         key={item.id}
                       >
@@ -251,7 +184,7 @@ export function Dashboard() {
                   {data.activeProjects.slice(0, 4).map((project) => (
                     <Link
                       className="home-project"
-                      href={`/items/${project.id}`}
+                      href={getItemHref(project)}
                       key={project.id}
                     >
                       <Folder size={18} />

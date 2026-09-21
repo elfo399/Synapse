@@ -1,5 +1,7 @@
 "use client";
 
+import { getItemHref } from "@/domain/item-url";
+
 import * as Dialog from "@radix-ui/react-dialog";
 import {
   ArrowUpRight,
@@ -179,7 +181,7 @@ export function ItemRow({
       <span className={`item-icon type-${item.type.toLowerCase()}`}>
         <TypeIcon type={item.type} />
       </span>
-      <Link href={`/items/${item.id}`} className="item-row-main">
+      <Link href={getItemHref(item)} className="item-row-main">
         <span className="item-row-title">{item.title}</span>
         <span className="item-row-meta">
           {item.snippet ||

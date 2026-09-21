@@ -143,14 +143,12 @@ export async function getGraph(
       tags: item.tags.map((join) => join.tag),
       connections: item._count.incoming + item._count.outgoing,
     })),
-    edges: edges
-      .slice(0, 5000)
-      .map((edge) => ({
-        id: edge.id,
-        source: edge.sourceItemId,
-        target: edge.targetItemId,
-        type: edge.relationType,
-      })),
+    edges: edges.slice(0, 5000).map((edge) => ({
+      id: edge.id,
+      source: edge.sourceItemId,
+      target: edge.targetItemId,
+      type: edge.relationType,
+    })),
     total,
     limit: query.limit,
     truncated:

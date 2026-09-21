@@ -2,23 +2,23 @@
 
 Synapse is intended for a private deployment reachable through a trusted TLS endpoint, preferably Tailscale Serve. It is not a hardened public multi-tenant SaaS. The following controls are implemented in the source and should remain regression-tested.
 
-| Boundary               | Control                                                                                                                   |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Password storage       | Better Auth's password hashing API; bootstrap stores no plaintext password.                                               |
-| Registration           | Email/password login enabled; public signup disabled; first account supplied through deployment variables.                |
-| Sessions               | Better Auth database sessions, HTTP-only cookies, HTTPS secure cookies, expiry/rotation, logout invalidation.             |
-| Login abuse            | Database-backed Better Auth rate limiting, with a tighter login rule.                                                     |
-| Authorization          | Session required for private routes/APIs; every Item/tag/search/graph/relation query derives the owner from that session. |
-| Database isolation     | Composite owner foreign keys prevent cross-owner relations and tag assignments; unique constraints prevent duplicates.    |
-| CSRF                   | Canonical trusted auth origin; JSON-only app mutations check Origin and Sec-Fetch-Site; session cookie protections apply. |
-| Validation             | Zod boundary schemas, bounded request body, bounded pagination/graph parameters, safe HTTP(S) bookmark URLs.              |
-| SQL injection          | Prisma queries and parameterized SQL fragments for PostgreSQL full-text search.                                           |
-| Markdown/XSS           | Markdown renderer with sanitization; raw HTML not trusted; safe link schemes; plain-text search snippets.                 |
-| Information disclosure | Private API responses use `no-store`; health endpoint exposes readiness only; generic unexpected-error responses.         |
-| Headers                | Application security headers restrict framing, content sniffing, referrer and browser capabilities.                       |
-| Container              | Non-root web UID, removed Linux capabilities, no-new-privileges, rotating logs; no published production database port.    |
-| Secrets                | Runtime environment only; `.env`/backups excluded from Git and build context; separate database and auth secrets.         |
-| PWA                    | Service worker does not cache private APIs or notes and does not queue offline mutations.                                 |
+| Boundary               | Control                                                                                                                             |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Password storage       | Better Auth's password hashing API; bootstrap stores no plaintext password.                                                         |
+| Registration           | Email/password login enabled; public signup disabled; first account supplied through deployment variables.                          |
+| Sessions               | Better Auth database sessions, HTTP-only cookies, HTTPS secure cookies, expiry/rotation, logout invalidation.                       |
+| Login abuse            | Database-backed Better Auth rate limiting, with a tighter login rule.                                                               |
+| Authorization          | Session required for private routes/APIs; every Item/tag/search/graph/relation query derives the owner from that session.           |
+| Database isolation     | Composite owner foreign keys prevent cross-owner relations, attachments and tag assignments; unique constraints prevent duplicates. |
+| CSRF                   | Canonical trusted auth origin; JSON and multipart app mutations check Origin and Sec-Fetch-Site; session cookie protections apply.  |
+| Validation             | Zod boundary schemas, bounded request body, bounded pagination/graph parameters, safe HTTP(S) bookmark URLs.                        |
+| SQL injection          | Prisma queries and parameterized SQL fragments for PostgreSQL full-text search.                                                     |
+| Markdown/XSS           | Markdown renderer with sanitization; raw HTML not trusted; safe link schemes; plain-text search snippets.                           |
+| Information disclosure | Private API responses use `no-store`; health endpoint exposes readiness only; generic unexpected-error responses.                   |
+| Headers                | Application security headers restrict framing, content sniffing, referrer and browser capabilities.                                 |
+| Container              | Non-root web UID, removed Linux capabilities, no-new-privileges, rotating logs; no published production database port.              |
+| Secrets                | Runtime environment only; `.env`/backups excluded from Git and build context; separate database and auth secrets.                   |
+| PWA                    | Service worker does not cache private APIs or notes and does not queue offline mutations.                                           |
 
 ## Operational responsibilities
 
@@ -39,3 +39,7 @@ Bootstrap is not a password-reset tool. Remove the initial password from the run
 ## Review evidence and limits
 
 Unit tests cover parsing/validation; database integration tests exercise persistence and ownership; browser tests cover private access and critical workflows. The exact executed results belong in [verification](verification.md). Code review and automated tests are not an independent penetration test. Physical Raspberry Pi runtime, the operator's TLS proxy, tailnet policy, disk encryption, and backup custody need verification on the deployment host.
+
+## Private media
+
+Attachment endpoints require a session and ownership for reads, ranges, uploads and deletion. Files use opaque keys outside public storage, bounded uploads and format/MIME checks. No server-side URL metadata fetching occurs. Image previews accept only the authenticated attachment endpoint. Browser camera/microphone permissions are restricted to self; media and blob previews are allowed by CSP. Attachment deletion is transactional through a retryable outbox, and backups coordinate metadata with file hashes. See [capture and attachments](capture-and-attachments.md) and [recovery](operations.md).

@@ -1,2 +1,4 @@
 import { ItemList } from "@/features/items/item-list";
-export default function Page() { return <ItemList kind="notes" itemType="NOTE" />; }
+export default function Page() {
+  return <ItemList kind="notes" itemType="NOTE" />;
+}

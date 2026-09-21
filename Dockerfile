@@ -42,8 +42,9 @@ COPY --from=build --chown=secondbrain:secondbrain /app/scripts ./scripts
 COPY --from=build --chown=secondbrain:secondbrain /app/src ./src
 COPY --from=build --chown=secondbrain:secondbrain /app/tsconfig.json ./tsconfig.json
 RUN chmod 0755 scripts/docker-entrypoint.sh \
-    && mkdir -p .next/cache \
-    && chown secondbrain:secondbrain .next/cache
+    && mkdir -p .next/cache /data/attachments/objects \
+    && chown -R secondbrain:secondbrain .next/cache /data/attachments \
+    && chmod 0700 /data/attachments /data/attachments/objects
 USER secondbrain
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \

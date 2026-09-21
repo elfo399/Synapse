@@ -1,11 +1,29 @@
-export const ITEM_TYPES = ["NOTE", "TASK", "PROJECT", "AREA", "RESOURCE", "BOOKMARK"] as const;
+export const ITEM_TYPES = [
+  "NOTE",
+  "TASK",
+  "PROJECT",
+  "AREA",
+  "RESOURCE",
+  "BOOKMARK",
+] as const;
 export type ItemType = (typeof ITEM_TYPES)[number];
-export const ITEM_STATUSES = ["ACTIVE", "TODO", "IN_PROGRESS", "DONE", "ON_HOLD", "CANCELLED"] as const;
+export const ITEM_STATUSES = [
+  "ACTIVE",
+  "TODO",
+  "IN_PROGRESS",
+  "DONE",
+  "ON_HOLD",
+  "CANCELLED",
+] as const;
 export type ItemStatus = (typeof ITEM_STATUSES)[number];
 export const RELATION_TYPES = ["RELATED", "PARENT", "REFERENCES"] as const;
 export type RelationType = (typeof RELATION_TYPES)[number];
 
-export interface TagSummary { id: string; name: string; count?: number }
+export interface TagSummary {
+  id: string;
+  name: string;
+  count?: number;
+}
 export interface ItemSummary {
   id: string;
   type: ItemType;
@@ -21,9 +39,17 @@ export interface ItemSummary {
   archivedAt: string | null;
   version: number;
   tags: TagSummary[];
+  attachments?: import("./attachments").AttachmentSummary[];
   _count?: { outgoing: number; incoming: number };
 }
-export interface RelationItem { id: string; title: string; type: ItemType; archivedAt: string | null }
+export interface RelationItem {
+  id: string;
+  title: string;
+  type: ItemType;
+  archivedAt: string | null;
+  status?: ItemStatus;
+  dueAt?: string | null;
+}
 export interface ItemRelation {
   id: string;
   sourceItemId: string;
@@ -52,7 +78,12 @@ export interface ItemInput {
   archived?: boolean;
   version?: number;
 }
-export interface ItemListResponse { items: ItemSummary[]; total: number; page: number; pageSize: number }
+export interface ItemListResponse {
+  items: ItemSummary[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
 export interface DashboardData {
   counts: { inbox: number; tasks: number; projects: number; notes: number };
   todayTasks: ItemSummary[];

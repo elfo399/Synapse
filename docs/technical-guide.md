@@ -156,12 +156,12 @@ bash scripts/backup.sh
 bash scripts/backup.sh /mnt/backup-drive/secondbrain
 ```
 
-The script creates a timestamped custom-format PostgreSQL dump and SHA-256 sidecar, checks that `pg_restore` can read the archive, and refuses silent overwrites. All V1 content, tags, relations, accounts, and sessions live in PostgreSQL. A Docker volume is persistence, **not a backup**. Copy encrypted backups off the Pi and perform regular restore drills.
+The script briefly stops web and creates a timestamped directory containing a PostgreSQL dump, a verified private attachment pack, a manifest and SHA-256 checksums. It refuses silent overwrites. Metadata lives in PostgreSQL; file bytes live in a separate persistent volume. A Docker volume is persistence, **not a backup**. Copy encrypted backups off the Pi and perform regular restore drills.
 
 To restore an explicitly selected, trusted archive into the current Compose stack:
 
 ```bash
-bash scripts/restore.sh /absolute/path/secondbrain-TIMESTAMP-RANDOM.dump --confirm-replace
+bash scripts/restore.sh /absolute/path/synapse-TIMESTAMP-RANDOM --confirm-replace
 ```
 
 Restore verifies the checksum, stops web writes, creates a safety backup, restores transactionally, and starts the web service with health checks. The flag deliberately confirms replacement of live data. The `.sha256` sidecar is mandatory. See [operations](operations.md) for recovery drills, retention, upgrade/rollback details, and failure behavior.
@@ -172,6 +172,8 @@ Before an upgrade, run a backup and note the current commit/image. Then update t
 
 Public registration is disabled. Every private read and write uses the authenticated owner's ID; relations/tags also enforce owner consistency in PostgreSQL. Better Auth handles password hashing and sessions. Markdown rendering strips unsafe content, bookmarks permit only HTTP(S), mutations check origin and validate input, and search SQL is parameterized. Production cookies require HTTPS outside localhost. See [the security review](security.md) for boundaries and operational responsibilities.
 
-V1 is a personal workspace: no collaboration, attachment upload, AI, semantic search, email recovery, notifications, or offline write synchronization. The graph is intentionally bounded (500 nodes by default, 1,500 maximum; 5,000 edges). Item titles are unique per owner after normalization to keep wikilinks unambiguous. Canvas graph exploration has a companion keyboard-accessible item list. PWA installation depends on browser support and HTTPS; the offline screen cannot access or edit private notes.
+V1 is a personal workspace: no collaboration, AI, semantic search, email recovery, notifications, or offline write synchronization. The graph is intentionally bounded (500 nodes by default, 1,500 maximum; 5,000 edges). Item titles are unique per owner after normalization to keep wikilinks unambiguous. Canvas graph exploration has a companion keyboard-accessible item list. PWA installation depends on browser support and HTTPS; the offline screen cannot access or edit private notes.
 
 Future embeddings/RAG can consume authorized Items and relations; future attachments should store metadata in PostgreSQL and bytes in a separately backed-up file/object store. These extension points do not require additional infrastructure in V1.
+
+See [Universal Capture and private attachments](capture-and-attachments.md) for upload formats, storage configuration, URL behavior and limitations.

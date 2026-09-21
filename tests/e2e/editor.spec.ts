@@ -1,3 +1,4 @@
+import { getItemHref } from "../../src/domain/item-url";
 import { randomUUID } from "node:crypto";
 import { expect } from "@playwright/test";
 import { test } from "./authenticated";
@@ -23,6 +24,10 @@ test("short document titles stay compact after changing viewport and editor mode
     await page.goto(`/items/${item.id}`);
     const heading = page.getByRole("textbox", { name: "Titolo", exact: true });
     await expect(heading).toHaveValue(title);
+    await page
+      .locator("#contenuto")
+      .getByRole("button", { name: "Modifica contenuto", exact: true })
+      .click();
     await page.getByRole("button", { name: "Anteprima", exact: true }).click();
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole("button", { name: "Scrivi", exact: true }).click();
@@ -82,6 +87,10 @@ for (const scenario of [
       const note = await create(`Documento lungo ${suffix}`, longContent);
       const target = await create(`WikiTarget${suffix}`, "La nota collegata.");
       await page.goto(`/items/${note.id}`);
+      await page
+        .locator("#contenuto")
+        .getByRole("button", { name: "Modifica contenuto", exact: true })
+        .click();
       const editor = page.getByRole("textbox", {
         name: "Contenuto",
         exact: true,
@@ -170,7 +179,7 @@ for (const scenario of [
         .locator(".markdown-preview")
         .getByRole("link", { name: target.title, exact: true })
         .click();
-      await expect(page).toHaveURL(`/items/${target.id}`);
+      await expect(page).toHaveURL(getItemHref(target));
       await expect(
         page.getByRole("textbox", { name: "Titolo", exact: true }),
       ).toHaveValue(target.title);

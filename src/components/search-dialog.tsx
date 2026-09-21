@@ -1,5 +1,7 @@
 "use client";
 
+import { getItemHref } from "@/domain/item-url";
+
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -254,7 +256,7 @@ export function SearchDialog({
 
   function activate(entry: PaletteEntry) {
     onOpenChange(false);
-    if (entry.kind === "item") router.push(`/items/${entry.item.id}`);
+    if (entry.kind === "item") router.push(getItemHref(entry.item));
     else if (entry.kind === "tag")
       router.push(`/tags?tag=${encodeURIComponent(entry.tag.name)}`);
     else if (entry.action.href) router.push(entry.action.href);

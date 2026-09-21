@@ -19,6 +19,10 @@ services:
       INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-}
       INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-}
       INITIAL_ADMIN_NAME: ${INITIAL_ADMIN_NAME:-Synapse}
+      ATTACHMENT_STORAGE_PATH: /data/attachments
+      MAX_ATTACHMENT_SIZE_MB: ${MAX_ATTACHMENT_SIZE_MB:-25}
+    volumes:
+      - secondbrain-attachments:/data/attachments
     ports:
       - "${WEB_BIND_ADDRESS:-127.0.0.1}:${WEB_PORT:-3000}:3000"
     security_opt:
@@ -54,3 +58,4 @@ services:
 
 volumes:
   secondbrain-data:
+  secondbrain-attachments:

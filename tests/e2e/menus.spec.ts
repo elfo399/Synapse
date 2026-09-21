@@ -121,7 +121,7 @@ test("search uses the full dialog width and supports keyboard navigation and foc
   await input.press("ArrowDown");
   await expect(results.nth(1)).toHaveAttribute("aria-selected", "true");
   await input.press("Enter");
-  await expect(page).toHaveURL(`/items/${secondResultId}`);
+  await expect(page).toHaveURL(new RegExp(`--${secondResultId}$`));
   await expect(dialog).toHaveCount(0);
 });
 
@@ -179,7 +179,7 @@ test("nested capture menu preserves dialog focus and item menus save type and st
     .locator(".topbar")
     .getByRole("button", { name: "Annota", exact: true })
     .click();
-  const dialog = page.getByRole("dialog", { name: "Annotazione rapida" });
+  const dialog = page.getByRole("dialog", { name: "Cattura universale" });
   await dialog.getByRole("button", { name: "Dettagli", exact: true }).click();
   await choose(page, "Tipo", "Preferito");
   await expect(

@@ -1,53 +1,50 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 umask 077
-
-usage() {
-  printf '%s\n' 'Usage: bash scripts/restore.sh /absolute/path/backup.dump --confirm-replace' >&2
-  printf '%s\n' 'Replaces this Compose database. Verifies checksum, stops the app, and makes a safety backup first.' >&2
-}
-
 if [[ "$#" -ne 2 || "${2:-}" != '--confirm-replace' ]]; then
-  usage
+  printf '%s\n' 'Usage: bash scripts/restore.sh /absolute/path/synapse-backup-directory --confirm-replace' >&2
   exit 2
 fi
-
-input_archive="$1"
-if [[ ! -f "$input_archive" || ! -f "$input_archive.sha256" ]]; then
-  printf '%s\n' 'An existing backup and matching .sha256 sidecar are required.' >&2
-  exit 1
-fi
-archive_dir="$(cd -- "$(dirname -- "$input_archive")" && pwd)"
-archive="$archive_dir/$(basename -- "$input_archive")"
+archive="$(cd -- "$1" && pwd)"
 repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd -- "$repo_dir"
-command -v sha256sum >/dev/null || { printf '%s\n' 'sha256sum is required.' >&2; exit 1; }
-
-# Only compare the digest of this explicitly selected file. Do not follow paths
-# supplied by a modified checksum sidecar.
-expected="$(awk 'NR == 1 { print $1 }' "$archive.sha256")"
-actual="$(sha256sum -- "$archive")"
-actual="${actual%% *}"
-if [[ ! "$expected" =~ ^[a-fA-F0-9]{64}$ || "${expected,,}" != "$actual" ]]; then
-  printf '%s\n' 'Checksum verification failed; database unchanged.' >&2
-  exit 1
-fi
-docker compose exec -T secondbrain-db pg_restore --list < "$archive" > /dev/null
-printf 'Restoring explicitly selected backup: %s\n' "$archive" >&2
-printf '%s\n' 'Stopping the web application to prevent writes.' >&2
-docker compose stop secondbrain-web
-
-restore_failed() {
-  printf '%s\n' 'Restore failed. The web application remains stopped. Inspect the error before restarting it.' >&2
-  printf '%s\n' 'The transactional restore rolls back database changes on an error.' >&2
-}
-trap restore_failed ERR
+command -v sha256sum >/dev/null
+# Check only fixed filenames, never follow paths found in a checksum file.
+for name in database.dump attachments.pack manifest.json; do
+  test -f "$archive/$name"
+  expected="$(awk -v name="$name" '$2 == name { print $1 }' "$archive/SHA256SUMS")"
+  actual="$(sha256sum -- "$archive/$name")"; actual="${actual%% *}"
+  [[ "$expected" =~ ^[a-f0-9]{64}$ && "$expected" == "$actual" ]] || { printf 'Checksum failed: %s. No changes made.\n' "$name" >&2; exit 1; }
+done
+docker compose exec -T secondbrain-db pg_restore --list < "$archive/database.dump" > /dev/null
+docker compose stop secondbrain-web >&2
 safety_archive="$(bash "$repo_dir/scripts/backup.sh")"
 printf 'Pre-restore safety backup: %s\n' "$safety_archive" >&2
-
-docker compose exec -T secondbrain-db sh -eu -c \
-  'exec pg_restore --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --clean --if-exists --no-owner --no-privileges --single-transaction --exit-on-error' < "$archive"
+token="$(docker compose run --rm --no-deps -T --entrypoint node secondbrain-web -e 'process.stdout.write(require("node:crypto").randomBytes(16).toString("hex"))')"
+[[ "$token" =~ ^[a-f0-9]{32}$ ]]
+storage() { docker compose run --rm --no-deps -T --entrypoint node secondbrain-web scripts/attachment-backup.mjs "$1" "$token"; }
+restore_database() {
+  docker compose exec -T secondbrain-db sh -eu -c \
+    'exec pg_restore --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --clean --if-exists --no-owner --no-privileges --single-transaction --exit-on-error' < "$1"
+}
+activated=0
+database_changed=0
+failed() {
+  trap - ERR
+  set +e
+  if [[ "$activated" == 1 ]]; then storage rollback; fi
+  if [[ "$database_changed" == 1 ]]; then restore_database "$safety_archive/database.dump"; fi
+  printf 'Restore failed. App remains stopped. Safety backup: %s\n' "$safety_archive" >&2
+  exit 1
+}
+trap failed ERR
+storage stage < "$archive/attachments.pack"
+storage activate
+activated=1
+restore_database "$archive/database.dump"
+database_changed=1
+storage verify
 trap - ERR
-printf '%s\n' 'Restore completed. Starting the application and applying any newer migrations.' >&2
-docker compose up -d --wait secondbrain-web
-printf '%s\n' 'Restore verified: application and database are healthy.'
+storage finalize
+docker compose up -d --wait secondbrain-web >&2
+printf '%s\n' 'Database and attachment hashes verified. Application is healthy.'

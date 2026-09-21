@@ -1,5 +1,7 @@
 ﻿"use client";
 
+import { getItemHref } from "@/domain/item-url";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowDownLeft, ArrowUpRight, Network, X } from "lucide-react";
@@ -85,7 +87,7 @@ export function GraphDetails({
           )}
           <Link
             className="button button-primary graph-open"
-            href={`/items/${item.id}`}
+            href={getItemHref(item)}
           >
             Apri {typeLabels[item.type].toLocaleLowerCase("it-IT")}
             <ArrowUpRight size={15} />

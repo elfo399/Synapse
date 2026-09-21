@@ -9,6 +9,7 @@ import {
 } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
+import { getItemHref } from "@/domain/item-url";
 import {
   ArrowDown,
   ArrowLeft,
@@ -169,8 +170,11 @@ export function GraphView() {
   }, [expanded]);
   const select = useCallback((id: string) => setSelected(id), [setSelected]);
   const open = useCallback(
-    (id: string) => router.push(`/items/${id}`),
-    [router],
+    (id: string) => {
+      const node = result?.data?.nodes.find((node) => node.id === id);
+      if (node) router.push(getItemHref(node));
+    },
+    [router, result],
   );
   const fallbackTo2D = useCallback(() => {
     setMode("2d");

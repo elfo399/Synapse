@@ -10,5 +10,7 @@ printf '%s\n' 'Synapse: applying database migrations.'
 ./node_modules/.bin/prisma migrate deploy
 printf '%s\n' 'Synapse: checking initial account.'
 ./node_modules/.bin/tsx scripts/bootstrap.ts
+printf '%s\n' 'Synapse: checking private storage and retrying pending deletions.'
+node scripts/attachment-backup.mjs maintain
 printf '%s\n' 'Synapse: starting application.'
 exec "$@"

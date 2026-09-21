@@ -1,5 +1,8 @@
 ﻿"use client";
 
+import { getItemHref } from "@/domain/item-url";
+import { ATTACHMENT_ACCEPT } from "@/domain/attachments";
+
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -15,6 +18,7 @@ import {
   List,
   Pencil,
   Plus,
+  Paperclip,
 } from "lucide-react";
 import { api } from "./api";
 import type { ItemSummary, Relation } from "./types";
@@ -101,7 +105,7 @@ function withWikilinks(content: string, relations: Relation[]) {
   const lookup = new Map(
     relations.map((relation) => [
       relation.target.title.toLocaleLowerCase(),
-      relation.target.id,
+      relation.target,
     ]),
   );
   return content.replace(
@@ -110,9 +114,9 @@ function withWikilinks(content: string, relations: Relation[]) {
       if (code || !title) return match;
       const [target, alias] = title.split("|");
       const normalized = target.trim();
-      const id = lookup.get(normalized.toLocaleLowerCase());
+      const linked = lookup.get(normalized.toLocaleLowerCase());
       const label = (alias || normalized).replace(/[\[\]\\]/g, "\\$&");
-      return `[${label}](${id ? `/items/${id}` : `#create=${encodeURIComponent(normalized)}`})`;
+      return `[${label}](${linked ? getItemHref(linked) : `#create=${encodeURIComponent(normalized)}`})`;
     },
   );
 }
@@ -153,11 +157,22 @@ export function MarkdownPreview({
                 {children}
               </a>
             ),
-          img: ({ alt }) => (
-            <span className="external-image">
-              [Immagine: {alt || "immagine esterna"}]
-            </span>
-          ),
+          img: ({ alt, src }) =>
+            typeof src === "string" &&
+            /^\/api\/attachments\/[a-zA-Z0-9_-]+$/.test(src) ? (
+              // Authenticated, same-origin images only; never send private files through the public optimizer.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={src}
+                alt={alt || "Allegato"}
+                className="attachment-inline-image"
+                loading="lazy"
+              />
+            ) : (
+              <span className="external-image">
+                [Immagine: {alt || "immagine esterna"}]
+              </span>
+            ),
         }}
       >
         {withWikilinks(content, relations) || "*La nota è ancora vuota.*"}
@@ -171,12 +186,38 @@ export function MarkdownEditor({
   onChange,
   relations,
   onCreate,
+  onUpload,
 }: {
   content: string;
   onChange: (content: string) => void;
   relations: Relation[];
   onCreate: (title: string) => void;
+  onUpload?: (files: File[]) => Promise<string>;
 }) {
+  const uploadInput = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const latestContent = useRef(content);
+  useLayoutEffect(() => {
+    latestContent.current = content;
+  }, [content]);
+  async function attach(files: File[]) {
+    if (!onUpload || !files.length || uploading) return;
+    const start = editor.current?.selectionStart ?? content.length;
+    const snapshot = content;
+    setUploading(true);
+    try {
+      const markdown = await onUpload(files);
+      // Preserve edits made while the upload was in flight.
+      const current = latestContent.current;
+      onChange(
+        current === snapshot
+          ? `${current.slice(0, start)}\n${markdown}\n${current.slice(start)}`
+          : `${current}\n\n${markdown}`,
+      );
+    } finally {
+      setUploading(false);
+    }
+  }
   const [mode, setMode] = useState<"write" | "split" | "preview">("write");
   const [linkQuery, setLinkQuery] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<ItemSummary[]>([]);
@@ -302,6 +343,34 @@ export function MarkdownEditor({
     <div className={`markdown-editor editor-mode-${mode}`}>
       <div className="editor-toolbar">
         <div className="editor-tools" aria-label="Formattazione Markdown">
+          {onUpload && (
+            <>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Allega un file al contenuto"
+                disabled={uploading || mode === "preview"}
+                onClick={() => uploadInput.current?.click()}
+              >
+                <Paperclip size={15} />
+              </button>
+              <input
+                ref={uploadInput}
+                className="sr-only"
+                tabIndex={-1}
+                type="file"
+                multiple
+                accept={ATTACHMENT_ACCEPT}
+                aria-label="Allegati del contenuto"
+                onChange={(event) => {
+                  void attach(Array.from(event.target.files || [])).catch(
+                    () => {},
+                  );
+                  event.target.value = "";
+                }}
+              />
+            </>
+          )}
           <button
             type="button"
             className="icon-button"
@@ -401,6 +470,25 @@ export function MarkdownEditor({
             <textarea
               id="item-content"
               ref={editor}
+              onPaste={(event) => {
+                if (onUpload && event.clipboardData.files.length) {
+                  event.preventDefault();
+                  void attach(Array.from(event.clipboardData.files)).catch(
+                    () => {},
+                  );
+                }
+              }}
+              onDragOver={(event) => {
+                if (onUpload) event.preventDefault();
+              }}
+              onDrop={(event) => {
+                if (onUpload && event.dataTransfer.files.length) {
+                  event.preventDefault();
+                  void attach(Array.from(event.dataTransfer.files)).catch(
+                    () => {},
+                  );
+                }
+              }}
               value={content}
               aria-autocomplete="list"
               aria-controls={

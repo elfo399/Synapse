@@ -99,6 +99,10 @@ Compose defines `secondbrain-web` and `secondbrain-db`. Only web is published, t
 ## Future extension points
 
 - **AI/RAG:** add an ingestion boundary downstream of committed Item versions, with an outbox/job table if asynchronous processing becomes necessary. Index owner IDs, item IDs, content versions, and deletion/archive state. Retrieval must recheck authorization against live Items and cite source IDs. No AI integration is active today.
-- **Attachments:** add `Attachment` metadata with owner/item IDs, media type, size, checksum, and storage key. Store bytes outside PostgreSQL under a separate persistent file/object store; coordinate backup/restore and enforce ownership on download.
+- **Object storage:** Attachment metadata and private local storage are implemented. StorageProvider is the extension boundary for a future S3/MinIO provider; ownership checks and compensation stay in the attachment service.
 - **Larger graphs:** cursor/neighborhood expansion, server-side clustering, cached layouts, and background layout workers can extend the current bounded projection.
 - **Additional independent users:** existing owner boundaries support separate private spaces; invitations, account management, and quotas still need implementation. Shared workspaces would require explicit permissions, not removal of owner filters.
+
+## Universal Capture and private attachments
+
+Capture accepts JSON or bounded multipart requests. The attachment service validates media, stages opaque files, commits metadata and item relations in a per-user transaction, and compensates failed creation. AttachmentDeletion durably records pending filesystem deletions. The non-root web container owns a separate attachment volume. Coordinated backup/restore verifies SHA-256 and swaps a staged objects directory while web is stopped. Item URLs use the centralized title-slug plus full stable ID helper; stale slugs redirect without changing identity.
