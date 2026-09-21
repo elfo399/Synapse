@@ -46,6 +46,18 @@ jobs:
           node-version: 22.23.2
           cache: npm
       - run: npm ci
+      - name: Format knowledge pack contribution
+        run: npx prettier --write scripts/import-knowledge-pack.ts scripts/knowledge-packs/arcadia.json tests/knowledge-packs.test.ts docs/knowledge-packs.md package.json
+      - name: Upload formatted knowledge pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: formatted-knowledge-pack
+          path: |
+            scripts/import-knowledge-pack.ts
+            scripts/knowledge-packs/arcadia.json
+            tests/knowledge-packs.test.ts
+            docs/knowledge-packs.md
+            package.json
       - run: npm run db:validate
       - run: npm run db:migrate:prod
       - run: npm run db:bootstrap
