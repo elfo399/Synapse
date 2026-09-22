@@ -63,6 +63,7 @@ model User {
   tags Tag[]
   attachments Attachment[]
   timeBlocks TimeBlock[]
+  plannerCategories PlannerCategory[]
   plannerTemplates PlannerTemplate[]
   timeSessions TimeSession[]
 }
@@ -161,6 +162,9 @@ model TimeBlock {
   endsAt DateTime
   timezone String @default("Europe/Rome") @db.VarChar(64)
   category TimeBlockCategory @default(OTHER)
+  categoryId String
+  categoryColor String? @db.VarChar(7)
+  plannerCategory PlannerCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   status TimeBlockStatus @default(PLANNED)
   recurrence Json?
   exceptionDates Json?
@@ -172,6 +176,23 @@ model TimeBlock {
   @@index([userId, endsAt])
   @@index([userId, itemId])
   @@index([userId, recurrenceParentId])
+  @@index([userId, categoryId])
+}
+
+model PlannerCategory {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name String @db.VarChar(60)
+  color String @db.VarChar(7)
+  icon String? @db.VarChar(40)
+  sortOrder Int @default(0)
+  archivedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  blocks TimeBlock[]
+  @@unique([userId, name])
+  @@index([userId, archivedAt, sortOrder])
 }
 
 model PlannerTemplate {

@@ -58,6 +58,7 @@ const navigation = [
     { href: "/graph", label: "Grafo", icon: Network },
     { href: "/tags", label: "Etichette", icon: Hash },
     { href: "/archive", label: "Archivio", icon: Archive },
+    { href: "/settings", label: "Configurazione", icon: Settings2 },
     { href: "/account", label: "Account", icon: UserRound },
   ],
 ];

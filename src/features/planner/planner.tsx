@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   CalendarDays,
@@ -10,21 +10,24 @@ import {
   Clock3,
   Copy,
   Focus,
+  GripVertical,
   ListTodo,
   Pause,
   Play,
   Plus,
+  Settings2,
   Save,
   Sparkles,
   Trash2,
 } from "lucide-react";
 import type {
+  PlannerCategorySummary,
   PlannerData,
-  TimeBlockCategory,
   TimeBlockSummary,
 } from "@/domain/types";
 import { getItemHref } from "@/domain/item-url";
 import { Modal } from "@/components/ui";
+import { AppSelect } from "@/components/select";
 import { api, changed, errorMessage } from "@/features/items/api";
 import { useRemote } from "@/features/items/use-remote";
 import { useWorkspace } from "@/components/workspace-context";
@@ -40,14 +43,30 @@ import {
 } from "./time-layout";
 import "./planner.css";
 
-const categoryLabels: Record<TimeBlockCategory, string> = {
-  WORK: "Lavoro",
-  STUDY: "Studio",
-  TRAINING: "Allenamento",
-  BREAK: "Pausa",
-  PERSONAL: "Personale",
-  OTHER: "Altro",
-};
+const categoryPalette = ["#8FA9FF", "#B59BE8", "#8DCAA5", "#D8BA78", "#E09AB9", "#E8917D", "#69B9B2", "#9DA5B2"];
+type RgbColor = { r: number; g: number; b: number };
+type HsvColor = { h: number; s: number; v: number };
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+function hexToRgb(color: string): RgbColor {
+  const match = /^#?([0-9a-f]{6})$/i.exec(color);
+  const value = match?.[1] ?? "8FA9FF";
+  return { r: Number.parseInt(value.slice(0, 2), 16), g: Number.parseInt(value.slice(2, 4), 16), b: Number.parseInt(value.slice(4, 6), 16) };
+}
+function rgbToHex({ r, g, b }: RgbColor) {
+  return `#${[r, g, b].map((value) => clamp(Math.round(value), 0, 255).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
+}
+function rgbToHsv({ r, g, b }: RgbColor): HsvColor {
+  const red = r / 255; const green = g / 255; const blue = b / 255;
+  const max = Math.max(red, green, blue); const min = Math.min(red, green, blue); const delta = max - min;
+  const hue = !delta ? 0 : max === red ? 60 * (((green - blue) / delta) % 6) : max === green ? 60 * ((blue - red) / delta + 2) : 60 * ((red - green) / delta + 4);
+  return { h: (hue + 360) % 360, s: max ? (delta / max) * 100 : 0, v: max * 100 };
+}
+function hsvToHex({ h, s, v }: HsvColor) {
+  const saturation = clamp(s, 0, 100) / 100; const value = clamp(v, 0, 100) / 100;
+  const chroma = value * saturation; const section = ((h % 360) + 360) % 360 / 60; const offset = chroma * (1 - Math.abs((section % 2) - 1)); const match = value - chroma;
+  const [red, green, blue] = section < 1 ? [chroma, offset, 0] : section < 2 ? [offset, chroma, 0] : section < 3 ? [0, chroma, offset] : section < 4 ? [0, offset, chroma] : section < 5 ? [offset, 0, chroma] : [chroma, 0, offset];
+  return rgbToHex({ r: (red + match) * 255, g: (green + match) * 255, b: (blue + match) * 255 });
+}
 const addDays = (date: string, days: number) => {
   const value = new Date(`${date}T12:00:00Z`);
   value.setUTCDate(value.getUTCDate() + days);
@@ -95,6 +114,7 @@ export function Planner({
   const [editor, setEditor] = useState<TimeBlockSummary | "new" | null>(null);
   const [seed, setSeed] = useState<EditorSeed | null>(null);
   const [focus, setFocus] = useState<TimeBlockSummary | null>(null);
+  const [hiddenCategoryIds, setHiddenCategoryIds] = useState<Set<string>>(() => new Set());
   const origin = view === "week" ? startOfWeek(selected) : selected;
   const range = useMemo(
     () => ({
@@ -126,6 +146,10 @@ export function Planner({
           <p>Organizza il tempo che vuoi dedicare alle idee che contano.</p>
         </div>
         <div className="planner-top-actions">
+          <Link href="/settings#categorie" className="button button-secondary">
+            <Settings2 size={15} />
+            Categorie
+          </Link>
           <Link
             href={view === "week" ? "/planner" : "/planner/week"}
             className="button button-secondary"
@@ -187,13 +211,13 @@ export function Planner({
               className="planner-summary"
               aria-label="Riepilogo del tempo pianificato"
             >
-              {Object.entries(data.summary)
-                .filter(([, value]) => value.planned || value.actual)
-                .map(([category, value]) => (
-                  <div key={category}>
-                    <span className={`planner-dot category-${category}`} />
+              {data.summary
+                .filter((value) => value.planned || value.actual)
+                .map((value) => (
+                  <div key={value.category.id}>
+                    <span className="planner-dot" style={{ background: value.category.color }} />
                     <strong>
-                      {categoryLabels[category as TimeBlockCategory]}
+                      {value.category.name}
                     </strong>
                     <small>
                       {hours(value.planned)} pianificate · {hours(value.actual)}{" "}
@@ -201,13 +225,22 @@ export function Planner({
                     </small>
                   </div>
                 ))}
-              {!Object.values(data.summary).some((value) => value.planned) && (
+              {!data.summary.some((value) => value.planned) && (
                 <p>
                   Inizia con un blocco: il tuo piano resterà collegato al resto
                   di Synapse.
                 </p>
               )}
             </section>
+            <CategoryFilters
+              categories={data.categories}
+              hiddenCategoryIds={hiddenCategoryIds}
+              onToggle={(id) => setHiddenCategoryIds((current) => {
+                const next = new Set(current);
+                if (next.has(id)) next.delete(id); else next.add(id);
+                return next;
+              })}
+            />
             <div className="planner-layout">
               <section
                 className="planner-calendar"
@@ -220,7 +253,7 @@ export function Planner({
                 {view === "week" ? (
                   <WeekGrid
                     days={days}
-                    blocks={data.blocks}
+                    blocks={data.blocks.filter((block) => !hiddenCategoryIds.has(block.categoryId))}
                     onSelectDay={(day) => {
                       setSelected(day);
                       setView("day");
@@ -231,7 +264,7 @@ export function Planner({
                 ) : (
                   <DayTimeline
                     day={selected}
-                    blocks={data.blocks}
+                    blocks={data.blocks.filter((block) => !hiddenCategoryIds.has(block.categoryId))}
                     onEdit={setEditor}
                     onNew={(hour) => openNew({ hour })}
                   />
@@ -263,6 +296,7 @@ export function Planner({
           day={seed?.day ?? selected}
           initialHour={seed?.hour}
           seed={seed}
+          categories={data?.categories ?? []}
           onClose={() => {
             setEditor(null);
             setSeed(null);
@@ -478,9 +512,9 @@ function BlockCard({
 }) {
   return (
     <button
-      className={`time-block category-${block.category} ${block.status.toLowerCase()} ${compact ? "compact-block" : ""}`}
+      className={`time-block ${block.status.toLowerCase()} ${compact ? "compact-block" : ""}`}
       onClick={onClick}
-      style={style}
+      style={{ ...style, "--category-color": block.categoryColor ?? block.category.color } as React.CSSProperties}
       title={`${block.title}, ${formatTime(block.startsAt)}–${formatTime(block.endsAt)}`}
     >
       <span className="time-block-time">
@@ -489,13 +523,91 @@ function BlockCard({
       <strong>{block.title}</strong>
       {!compact && (
         <span className="time-block-meta">
-          {categoryLabels[block.category]}
+          {block.category.name}
           {block.item && ` · ${block.item.title}`}
           {block.conflict && " · Sovrapposto"}
         </span>
       )}
     </button>
   );
+}
+function CategoryFilters({
+  categories,
+  hiddenCategoryIds,
+  onToggle,
+}: {
+  categories: PlannerCategorySummary[];
+  hiddenCategoryIds: Set<string>;
+  onToggle: (id: string) => void;
+}) {
+  return (
+    <nav className="category-filters" aria-label="Filtra le categorie del planner">
+      <span>Mostra</span>
+      {categories.map((category) => {
+        const selected = !hiddenCategoryIds.has(category.id);
+        return <button key={category.id} className={selected ? "selected" : ""} aria-pressed={selected} onClick={() => onToggle(category.id)}>
+          <i style={{ background: category.color }} aria-hidden="true" />
+          {category.name}{category.archivedAt ? " (archiviata)" : ""}
+        </button>;
+      })}
+    </nav>
+  );
+}
+function CategoryColorControl({ color, onChange, label, open, onOpenChange }: { color: string; onChange: (value: string) => void; label: string; open: boolean; onOpenChange: (open: boolean) => void }) {
+  const [hsv, setHsv] = useState(() => rgbToHsv(hexToRgb(color)));
+  useEffect(() => { if (open) setHsv(rgbToHsv(hexToRgb(color))); }, [open, color]);
+  const rgb = hexToRgb(color);
+  function setPickerColor(next: HsvColor) { setHsv(next); onChange(hsvToHex(next)); }
+  function chooseSpectrum(event: React.PointerEvent<HTMLDivElement>) {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    setPickerColor({ h: hsv.h, s: clamp(((event.clientX - bounds.left) / bounds.width) * 100, 0, 100), v: clamp((1 - (event.clientY - bounds.top) / bounds.height) * 100, 0, 100) });
+  }
+  function updateChannel(channel: keyof RgbColor, value: string) { onChange(rgbToHex({ ...rgb, [channel]: clamp(Number(value) || 0, 0, 255) })); }
+  return <div className="category-color-control"><button type="button" className="category-color-button" style={{ "--selected-color": color } as React.CSSProperties} aria-label={label} aria-expanded={open} onClick={() => onOpenChange(!open)}><span /></button>{open && <div className="category-color-popover category-rgb-picker" role="dialog" aria-label="Scegli un colore RGB"><strong>Colore</strong><div className="category-color-spectrum" style={{ "--picker-hue": `hsl(${hsv.h}, 100%, 50%)`, "--picker-x": `${hsv.s}%`, "--picker-y": `${100 - hsv.v}%` } as React.CSSProperties} onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); chooseSpectrum(event); }} onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) chooseSpectrum(event); }}><span aria-hidden="true" /></div><label className="category-hue-control">Tonalità<input aria-label="Tonalità" type="range" min="0" max="360" value={Math.round(hsv.h)} onChange={(event) => setPickerColor({ ...hsv, h: Number(event.target.value) })} /></label><div className="category-rgb-fields" aria-label="Valori RGB"><label>R<input aria-label="Rosso" type="number" min="0" max="255" value={rgb.r} onChange={(event) => updateChannel("r", event.target.value)} /></label><label>G<input aria-label="Verde" type="number" min="0" max="255" value={rgb.g} onChange={(event) => updateChannel("g", event.target.value)} /></label><label>B<input aria-label="Blu" type="number" min="0" max="255" value={rgb.b} onChange={(event) => updateChannel("b", event.target.value)} /></label></div><div className="category-color-options" aria-label="Colori rapidi">{categoryPalette.map((option) => <button key={option} type="button" className={option === color ? "selected" : ""} style={{ background: option }} aria-label={`Usa ${option}`} onClick={() => { onChange(option); setHsv(rgbToHsv(hexToRgb(option))); }} />)}</div><label className="category-hex-field">HEX<input value={color} maxLength={7} pattern="#[0-9a-fA-F]{6}" onChange={(event) => onChange(event.target.value.toUpperCase())} /></label></div>}</div>;
+}
+export function CategoryManager({ categories, onClose, onChanged }: { categories: PlannerCategorySummary[]; onClose: () => void; onChanged: () => void }) {
+  const { notify } = useWorkspace();
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ id: string; position: "before" | "after" } | null>(null);
+  const [openColorPicker, setOpenColorPicker] = useState<string | null>(null);
+  const previewOrder = useMemo(() => {
+    if (!draggedId || !dropTarget || draggedId === dropTarget.id) return categories.map((category) => category.id);
+    const withoutDragged = categories.filter((category) => category.id !== draggedId);
+    const targetIndex = withoutDragged.findIndex((category) => category.id === dropTarget.id);
+    if (targetIndex < 0) return categories.map((category) => category.id);
+    const destination = targetIndex + (dropTarget.position === "after" ? 1 : 0);
+    return [...withoutDragged.slice(0, destination), categories.find((category) => category.id === draggedId)!, ...withoutDragged.slice(destination)].map((category) => category.id);
+  }, [categories, draggedId, dropTarget]);
+  async function reorder(target: { id: string; position: "before" | "after" }) {
+    if (!draggedId || draggedId === target.id) return;
+    const ordered = categories.filter((category) => category.id !== draggedId);
+    const targetIndex = ordered.findIndex((category) => category.id === target.id);
+    if (targetIndex < 0) return;
+    try { await api(`/api/planner/categories/${draggedId}`, { method: "PATCH", body: JSON.stringify({ sortOrder: targetIndex + (target.position === "after" ? 1 : 0) }) }); onChanged(); }
+    catch (error) { notify(errorMessage(error)); } finally { setDraggedId(null); setDropTarget(null); }
+  }
+  return <Modal open onOpenChange={(open) => !open && onClose()} title="Categorie" description="Trascina la maniglia per ordinare; puoi modificare colore, nome e archivio." wide>
+    <div className="category-manager"><CategoryCreateDialogInline onCreated={onChanged} pickerOpen={openColorPicker === "new"} onPickerOpenChange={(open) => setOpenColorPicker(open ? "new" : null)} />{categories.map((category) => <CategoryRow key={category.id} category={category} categories={categories} previewOrder={previewOrder} dragging={draggedId === category.id} onDragStart={() => { setDraggedId(category.id); setDropTarget(null); }} onDragEnd={() => { setDraggedId(null); setDropTarget(null); }} onPreview={(position) => { if (draggedId) setDropTarget(draggedId === category.id ? null : { id: category.id, position }); }} onDrop={(position) => reorder({ id: category.id, position })} onChanged={onChanged} pickerOpen={openColorPicker === category.id} onPickerOpenChange={(open) => setOpenColorPicker(open ? category.id : null)} />)}</div>
+    <div className="dialog-footer"><button className="button button-primary" onClick={onClose}>Fine</button></div>
+  </Modal>;
+}
+function CategoryCreateDialogInline({ onCreated, pickerOpen, onPickerOpenChange }: { onCreated: () => void; pickerOpen: boolean; onPickerOpenChange: (open: boolean) => void }) {
+  const { notify } = useWorkspace(); const [name, setName] = useState(""); const [color, setColor] = useState(categoryPalette[0]); const [saving, setSaving] = useState(false);
+  async function create() { setSaving(true); try { await api("/api/planner/categories", { method: "POST", body: JSON.stringify({ name, color }) }); setName(""); notify("Categoria creata."); onCreated(); } catch (error) { notify(errorMessage(error)); } finally { setSaving(false); } }
+  return <section className="category-create-inline" aria-labelledby="new-category-heading"><div className="category-create-title"><Plus size={16} /><h3 id="new-category-heading">Nuova categoria</h3></div><label>Nome della categoria<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Es. Idee" /></label><label className="category-color-field">Colore<CategoryColorControl color={color} onChange={setColor} label="Scegli il colore della nuova categoria" open={pickerOpen} onOpenChange={onPickerOpenChange} /></label><button className="button button-primary" disabled={!name.trim() || saving} onClick={create}>{saving ? "Creazione…" : "Crea categoria"}</button></section>;
+}
+function CategoryRow({ category, categories, previewOrder, dragging, onDragStart, onDragEnd, onPreview, onDrop, onChanged, pickerOpen, onPickerOpenChange }: { category: PlannerCategorySummary; categories: PlannerCategorySummary[]; previewOrder: string[]; dragging: boolean; onDragStart: () => void; onDragEnd: () => void; onPreview: (position: "before" | "after") => void; onDrop: (position: "before" | "after") => void; onChanged: () => void; pickerOpen: boolean; onPickerOpenChange: (open: boolean) => void }) {
+  const { notify } = useWorkspace(); const [name, setName] = useState(category.name); const [color, setColor] = useState(category.color); const [replacement, setReplacement] = useState("");
+  const [dragReady, setDragReady] = useState(false);
+  async function patch(body: object, success: string) { try { await api(`/api/planner/categories/${category.id}`, { method: "PATCH", body: JSON.stringify(body) }); notify(success); onChanged(); } catch (error) { notify(errorMessage(error)); } }
+  async function remove() { const moving = replacement || undefined; if (!window.confirm(moving ? `Eliminare “${category.name}” e spostare i suoi blocchi?` : `Eliminare “${category.name}”? Le categorie con blocchi vanno prima archiviate o riassegnate.`)) return; try { await api(`/api/planner/categories/${category.id}`, { method: "DELETE", body: JSON.stringify(moving ? { reassignToId: moving } : {}) }); notify("Categoria eliminata."); onChanged(); } catch (error) { notify(errorMessage(error)); } }
+  return <section className={`category-row ${category.archivedAt ? "archived" : ""} ${dragging ? "dragging" : ""}`} style={{ order: previewOrder.indexOf(category.id) }} draggable={dragReady} onDragStart={(event) => { if (!dragReady) { event.preventDefault(); return; } event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setDragImage(event.currentTarget, 20, 20); onDragStart(); }} onDragEnd={() => { setDragReady(false); onDragEnd(); }} onDragOver={(event) => { event.preventDefault(); const bounds = event.currentTarget.getBoundingClientRect(); onPreview(event.clientY < bounds.top + bounds.height / 2 ? "before" : "after"); }} onDrop={(event) => { event.preventDefault(); const bounds = event.currentTarget.getBoundingClientRect(); onDrop(event.clientY < bounds.top + bounds.height / 2 ? "before" : "after"); }}>
+    <button type="button" className="category-drag-handle" onPointerDown={() => setDragReady(true)} onPointerUp={() => setDragReady(false)} aria-label={`Trascina ${category.name} per cambiare l’ordine`} title="Tieni premuto e trascina per riordinare"><GripVertical size={18} /></button>
+    <span className="category-swatch" style={{ background: color }} aria-hidden="true" />
+    <div className="category-row-fields"><label>Nome<input value={name} onChange={(event) => setName(event.target.value)} /></label><label className="category-color-field">Colore<CategoryColorControl color={color} onChange={setColor} label={`Scegli il colore per ${category.name}`} open={pickerOpen} onOpenChange={onPickerOpenChange} /></label></div>
+    <div className="category-row-actions"><button className="button button-ghost compact" onClick={() => patch({ name, color }, "Categoria salvata.")}>Salva modifiche</button><button className="button button-ghost compact" onClick={() => patch({ archived: !category.archivedAt }, category.archivedAt ? "Categoria ripristinata." : "Categoria archiviata.")}>{category.archivedAt ? "Ripristina" : "Archivia"}</button></div>
+    <div className="category-delete"><label>Sposta i blocchi in<AppSelect value={replacement} onValueChange={setReplacement} aria-label={`Sposta i blocchi della categoria ${category.name}`} className="category-reassignment-select" options={[{ value: "", label: "Non riassegnare" }, ...categories.filter((value) => value.id !== category.id && !value.archivedAt).map((value) => ({ value: value.id, label: value.name }))]} /></label><button className="text-link" onClick={remove}>Elimina categoria</button></div>
+  </section>;
 }
 function Tasks({
   tasks,
@@ -541,7 +653,6 @@ function Templates({
 }) {
   const { notify } = useWorkspace();
   async function apply(template: PlannerData["templates"][number]) {
-    const blocks = Array.isArray(template.blocks) ? template.blocks : [];
     if (
       !window.confirm(
         `Applicare “${template.name}” a ${formatDate(day)}? I blocchi esistenti non verranno modificati.`,
@@ -549,37 +660,7 @@ function Templates({
     )
       return;
     try {
-      await Promise.all(
-        blocks.map((raw) => {
-          const block = raw as {
-            title: string;
-            description?: string;
-            category: TimeBlockCategory;
-            startsAt: string;
-            endsAt: string;
-            itemId?: string | null;
-          };
-          const start = new Date(block.startsAt);
-          const end = new Date(block.endsAt);
-          return api("/api/planner", {
-            method: "POST",
-            body: JSON.stringify({
-              ...block,
-              startsAt: zonedDateTimeToUtc(
-                day,
-                start.getHours(),
-                start.getMinutes(),
-              ).toISOString(),
-              endsAt: zonedDateTimeToUtc(
-                day,
-                end.getHours(),
-                end.getMinutes(),
-              ).toISOString(),
-              recurrence: null,
-            }),
-          });
-        }),
-      );
+      await api(`/api/planner/templates/${template.id}/apply`, { method: "POST", body: JSON.stringify({ date: day }) });
       notify("Template applicato senza modificare i blocchi presenti.");
       onApplied();
     } catch (error) {
@@ -616,6 +697,7 @@ function BlockEditor({
   day,
   initialHour = 9,
   seed,
+  categories,
   onClose,
   onSaved,
   onFocus,
@@ -624,6 +706,7 @@ function BlockEditor({
   day: string;
   initialHour?: number;
   seed: EditorSeed | null;
+  categories: PlannerCategorySummary[];
   onClose: () => void;
   onSaved: () => void;
   onFocus: (block: TimeBlockSummary) => void;
@@ -638,9 +721,7 @@ function BlockEditor({
       ? inputValue(block.endsAt)
       : editorDateTime(day, Math.min(initialHour + 1, 23)),
   );
-  const [category, setCategory] = useState<TimeBlockCategory>(
-    block?.category ?? "OTHER",
-  );
+  const [categoryId, setCategoryId] = useState(block?.categoryId ?? categories.find((category) => category.name === "Altro")?.id ?? categories[0]?.id ?? "");
   const [description, setDescription] = useState(block?.description ?? "");
   const [itemId, setItemId] = useState(block?.itemId ?? seed?.itemId ?? "");
   const [recurring, setRecurring] = useState(Boolean(block?.recurrence));
@@ -654,7 +735,7 @@ function BlockEditor({
           title,
           startsAt: inputToUtc(startsAt),
           endsAt: inputToUtc(endsAt),
-          category,
+          categoryId,
           description,
           itemId: itemId || null,
           timezone: PLANNER_TIME_ZONE,
@@ -723,14 +804,12 @@ function BlockEditor({
         <label>
           Categoria
           <select
-            value={category}
-            onChange={(event) =>
-              setCategory(event.target.value as TimeBlockCategory)
-            }
+            value={categoryId}
+            onChange={(event) => setCategoryId(event.target.value)}
           >
-            {Object.entries(categoryLabels).map(([value, label]) => (
-              <option value={value} key={value}>
-                {label}
+            {categories.filter((category) => !category.archivedAt || category.id === block?.categoryId).map((category) => (
+              <option value={category.id} key={category.id}>
+                {category.name}
               </option>
             ))}
           </select>
@@ -837,7 +916,7 @@ function FocusMode({
         <h3>{block.title}</h3>
         <p>
           {formatTime(block.startsAt)}–{formatTime(block.endsAt)} ·{" "}
-          {categoryLabels[block.category]}
+          {block.category.name}
         </p>
         {block.item && (
           <Link href={getItemHref(block.item)}>Apri {block.item.title}</Link>

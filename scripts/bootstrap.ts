@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 import { hashPassword } from "better-auth/crypto";
 import { z } from "zod";
 import { prisma } from "../src/lib/db";
+import { ensurePlannerCategories } from "../src/server/planner-categories";
 
 export async function bootstrapUser(): Promise<string> {
   const existing = await prisma.user.findFirst({ select: { id: true } });
@@ -46,6 +47,7 @@ export async function bootstrapUser(): Promise<string> {
         password,
       },
     });
+    await ensurePlannerCategories(tx, id);
     console.info(
       "Account iniziale di Synapse creato. La registrazione pubblica è disabilitata.",
     );

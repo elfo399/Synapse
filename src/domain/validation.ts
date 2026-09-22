@@ -6,7 +6,7 @@ import {
   type ItemStatus,
   type ItemType,
 } from "./types";
-import { TIME_BLOCK_CATEGORIES, TIME_BLOCK_STATUSES } from "./types";
+import { TIME_BLOCK_STATUSES } from "./types";
 import { normalizeTag } from "./normalization";
 
 export const idSchema = z.string().min(1).max(128);
@@ -101,7 +101,7 @@ export const timeBlockSchema = z.object({
   startsAt: datetimeSchema,
   endsAt: datetimeSchema,
   timezone: z.string().trim().min(1).max(64).default("Europe/Rome"),
-  category: z.enum(TIME_BLOCK_CATEGORIES).default("OTHER"),
+  categoryId: idSchema,
   status: z.enum(TIME_BLOCK_STATUSES).default("PLANNED"),
   itemId: idSchema.nullable().optional(),
   recurrence: recurrenceSchema,
@@ -116,8 +116,20 @@ export const timeBlockPatchSchema = z.object({
   description: z.string().max(20_000).optional(),
   startsAt: datetimeSchema.optional(), endsAt: datetimeSchema.optional(),
   timezone: z.string().trim().min(1).max(64).optional(),
-  category: z.enum(TIME_BLOCK_CATEGORIES).optional(), status: z.enum(TIME_BLOCK_STATUSES).optional(),
+  categoryId: idSchema.optional(), status: z.enum(TIME_BLOCK_STATUSES).optional(),
   itemId: idSchema.nullable().optional(), recurrence: recurrenceSchema,
+}).strict();
+export const plannerCategorySchema = z.object({
+  name: z.string().trim().min(1, "Inserisci un nome per la categoria.").max(60),
+  color: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Inserisci un colore HEX valido."),
+  icon: z.string().trim().min(1).max(40).nullable().optional(),
+}).strict();
+export const plannerCategoryPatchSchema = z.object({
+  name: z.string().trim().min(1, "Inserisci un nome per la categoria.").max(60).optional(),
+  color: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Inserisci un colore HEX valido.").optional(),
+  icon: z.string().trim().min(1).max(40).nullable().optional(),
+  sortOrder: z.number().int().min(0).max(10_000).optional(),
+  archived: z.boolean().optional(),
 }).strict();
 export const plannerRangeSchema = z.object({ from: datetimeSchema, to: datetimeSchema }).strict().superRefine((v, ctx) => {
   if (new Date(v.to).getTime() <= new Date(v.from).getTime()) ctx.addIssue({ code: "custom", message: "Intervallo non valido." });

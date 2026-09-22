@@ -18,20 +18,22 @@ export const ITEM_STATUSES = [
 export type ItemStatus = (typeof ITEM_STATUSES)[number];
 export const RELATION_TYPES = ["RELATED", "PARENT", "REFERENCES"] as const;
 export type RelationType = (typeof RELATION_TYPES)[number];
-export const TIME_BLOCK_CATEGORIES = ["WORK", "STUDY", "TRAINING", "BREAK", "PERSONAL", "OTHER"] as const;
-export type TimeBlockCategory = (typeof TIME_BLOCK_CATEGORIES)[number];
 export const TIME_BLOCK_STATUSES = ["PLANNED", "IN_PROGRESS", "COMPLETED", "SKIPPED"] as const;
 export type TimeBlockStatus = (typeof TIME_BLOCK_STATUSES)[number];
+export interface PlannerCategorySummary {
+  id: string; name: string; color: string; icon: string | null; sortOrder: number; archivedAt: string | null;
+}
 export interface TimeBlockSummary {
   id: string; title: string; description: string; startsAt: string; endsAt: string;
-  timezone: string; category: TimeBlockCategory; status: TimeBlockStatus; itemId: string | null;
+  timezone: string; categoryId: string; categoryColor: string | null; category: PlannerCategorySummary; status: TimeBlockStatus; itemId: string | null;
   recurrence: { frequency: "DAILY" | "WEEKLY"; weekdays?: number[]; until?: string | null } | null;
   item?: Pick<ItemSummary, "id" | "title" | "type" | "status" | "dueAt"> | null;
   actualMinutes: number; conflict: boolean;
 }
 export interface PlannerData {
   blocks: TimeBlockSummary[]; tasks: ItemSummary[]; templates: { id: string; name: string; blocks: unknown }[];
-  summary: Record<TimeBlockCategory, { planned: number; actual: number }>;
+  categories: PlannerCategorySummary[];
+  summary: { category: PlannerCategorySummary; planned: number; actual: number }[];
 }
 
 export interface TagSummary {
