@@ -14,6 +14,10 @@ Note · Progetti · Attività · Link · Immagini · Audio
 
 </div>
 
+## Assistente AI locale
+
+Synapse include un assistente AI opzionale che può cercare nelle tue note, progetti e risorse, mostrando le fonti usate in ogni risposta. Usa Ollama e `llama3.2:3b` sul tuo server: le conversazioni e le conoscenze restano locali. Puoi anche usare la Chat generale, che non legge le note private. [Guida all’AI locale](docs/ai.md).
+
 ![La Home di Synapse: idee da raccogliere, attività di oggi e progetti da riprendere](docs/screenshots/home.png)
 
 Un appunto preso al volo. Un articolo da leggere. Un progetto che vuoi realizzare. Synapse dà un posto a tutto questo e ti aiuta a **trasformare ciò che raccogli in qualcosa che puoi usare**.

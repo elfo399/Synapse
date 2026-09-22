@@ -11,6 +11,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Archive,
+  Bot,
   Bookmark,
   Box,
   Check,
@@ -47,6 +48,7 @@ const navigation = [
     { href: "/notes", label: "Note", icon: FileText },
     { href: "/tasks", label: "Attività", icon: CheckSquare },
     { href: "/planner", label: "Planner", icon: CalendarDays },
+    { href: "/assistant", label: "Assistente AI", icon: Bot },
   ],
   [
     { href: "/projects", label: "Progetti", icon: Folder },
