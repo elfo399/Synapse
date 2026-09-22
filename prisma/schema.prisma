@@ -32,6 +32,22 @@ enum RelationType {
   REFERENCES
 }
 
+enum TimeBlockCategory {
+  WORK
+  STUDY
+  TRAINING
+  BREAK
+  PERSONAL
+  OTHER
+}
+
+enum TimeBlockStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+}
+
 model User {
   id String @id @default(cuid())
   name String
@@ -46,6 +62,9 @@ model User {
   items Item[]
   tags Tag[]
   attachments Attachment[]
+  timeBlocks TimeBlock[]
+  plannerTemplates PlannerTemplate[]
+  timeSessions TimeSession[]
 }
 
 model Session {
@@ -121,12 +140,64 @@ model Item {
   incoming ItemRelation[] @relation("TargetRelations")
   wikiReferences WikiReference[]
   attachments Attachment[]
+  timeBlocks TimeBlock[]
   @@unique([userId, id])
   @@unique([userId, titleNormalized])
   @@index([userId, archivedAt, updatedAt(sort: Desc)])
   @@index([userId, type, archivedAt, status])
   @@index([userId, inbox, archivedAt])
   @@index([userId, dueAt])
+}
+
+model TimeBlock {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemId String?
+  item Item? @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  title String @db.VarChar(200)
+  description String @default("") @db.Text
+  startsAt DateTime
+  endsAt DateTime
+  timezone String @default("Europe/Rome") @db.VarChar(64)
+  category TimeBlockCategory @default(OTHER)
+  status TimeBlockStatus @default(PLANNED)
+  recurrence Json?
+  exceptionDates Json?
+  recurrenceParentId String? @db.VarChar(128)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sessions TimeSession[]
+  @@index([userId, startsAt])
+  @@index([userId, endsAt])
+  @@index([userId, itemId])
+  @@index([userId, recurrenceParentId])
+}
+
+model PlannerTemplate {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name String @db.VarChar(100)
+  blocks Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([userId, name])
+  @@index([userId, updatedAt])
+}
+
+model TimeSession {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  timeBlockId String
+  timeBlock TimeBlock @relation(fields: [timeBlockId], references: [id], onDelete: Cascade)
+  startedAt DateTime
+  endedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([userId, startedAt])
+  @@index([timeBlockId, endedAt])
 }
 
 model Tag {

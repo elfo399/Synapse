@@ -15,6 +15,7 @@ import {
   Box,
   Check,
   CheckSquare,
+  CalendarDays,
   FileText,
   Folder,
   Hash,
@@ -45,6 +46,7 @@ const navigation = [
     { href: "/inbox", label: "Da organizzare", icon: Inbox },
     { href: "/notes", label: "Note", icon: FileText },
     { href: "/tasks", label: "Attività", icon: CheckSquare },
+    { href: "/planner", label: "Planner", icon: CalendarDays },
   ],
   [
     { href: "/projects", label: "Progetti", icon: Folder },
@@ -315,11 +317,11 @@ export function WorkspaceShell({
         </div>
         <nav className="mobile-bottom-nav" aria-label="Navigazione rapida">
           <Link
-            href="/notes"
-            aria-current={pathname === "/notes" ? "page" : undefined}
+            href="/planner"
+            aria-current={pathname === "/planner" ? "page" : undefined}
           >
-            <FileText size={19} />
-            <span>Note</span>
+            <CalendarDays size={19} />
+            <span>Piano</span>
           </Link>
           <Link
             href="/inbox"

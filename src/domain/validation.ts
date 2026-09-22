@@ -6,6 +6,7 @@ import {
   type ItemStatus,
   type ItemType,
 } from "./types";
+import { TIME_BLOCK_CATEGORIES, TIME_BLOCK_STATUSES } from "./types";
 import { normalizeTag } from "./normalization";
 
 export const idSchema = z.string().min(1).max(128);
@@ -87,6 +88,40 @@ export const itemQuerySchema = z.object({
   q: z.string().max(200).optional(),
   page: z.coerce.number().int().min(1).max(100_000).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(30),
+});
+const datetimeSchema = z.string().datetime({ offset: true });
+const recurrenceSchema = z.object({
+  frequency: z.enum(["DAILY", "WEEKLY"]),
+  weekdays: z.array(z.number().int().min(0).max(6)).max(7).optional(),
+  until: datetimeSchema.nullable().optional(),
+}).strict().nullable().optional();
+export const timeBlockSchema = z.object({
+  title: z.string().trim().min(1, "Inserisci un titolo.").max(200),
+  description: z.string().max(20_000).default(""),
+  startsAt: datetimeSchema,
+  endsAt: datetimeSchema,
+  timezone: z.string().trim().min(1).max(64).default("Europe/Rome"),
+  category: z.enum(TIME_BLOCK_CATEGORIES).default("OTHER"),
+  status: z.enum(TIME_BLOCK_STATUSES).default("PLANNED"),
+  itemId: idSchema.nullable().optional(),
+  recurrence: recurrenceSchema,
+}).strict().superRefine((value, ctx) => {
+  const duration = new Date(value.endsAt).getTime() - new Date(value.startsAt).getTime();
+  if (duration <= 0) ctx.addIssue({ code: "custom", path: ["endsAt"], message: "La fine deve seguire l’inizio." });
+  if (duration > 24 * 60 * 60 * 1000) ctx.addIssue({ code: "custom", path: ["endsAt"], message: "Un blocco può durare al massimo 24 ore." });
+  if (value.recurrence?.frequency === "WEEKLY" && value.recurrence.weekdays?.length === 0) ctx.addIssue({ code: "custom", path: ["recurrence", "weekdays"], message: "Scegli almeno un giorno." });
+});
+export const timeBlockPatchSchema = z.object({
+  title: z.string().trim().min(1).max(200).optional(),
+  description: z.string().max(20_000).optional(),
+  startsAt: datetimeSchema.optional(), endsAt: datetimeSchema.optional(),
+  timezone: z.string().trim().min(1).max(64).optional(),
+  category: z.enum(TIME_BLOCK_CATEGORIES).optional(), status: z.enum(TIME_BLOCK_STATUSES).optional(),
+  itemId: idSchema.nullable().optional(), recurrence: recurrenceSchema,
+}).strict();
+export const plannerRangeSchema = z.object({ from: datetimeSchema, to: datetimeSchema }).strict().superRefine((v, ctx) => {
+  if (new Date(v.to).getTime() <= new Date(v.from).getTime()) ctx.addIssue({ code: "custom", message: "Intervallo non valido." });
+  if (new Date(v.to).getTime() - new Date(v.from).getTime() > 9 * 24 * 60 * 60 * 1000) ctx.addIssue({ code: "custom", message: "Scegli al massimo una settimana." });
 });
 
 export function defaultStatus(type: ItemType): ItemStatus {

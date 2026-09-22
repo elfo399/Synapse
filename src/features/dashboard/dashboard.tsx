@@ -6,6 +6,7 @@ import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
+  CalendarDays,
   Check,
   Circle,
   Folder,
@@ -14,7 +15,7 @@ import {
   Network,
   Plus,
 } from "lucide-react";
-import type { DashboardData } from "@/domain/types";
+import type { DashboardData, PlannerData } from "@/domain/types";
 import { EmptyState, ErrorState, Loading, TypeIcon } from "@/components/ui";
 import { useWorkspace } from "@/components/workspace-context";
 import { api, changed, errorMessage } from "@/features/items/api";
@@ -34,6 +35,20 @@ const today = () =>
     month: "long",
     day: "numeric",
   }).format(new Date());
+const plannerRange = () => {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  return `/api/planner?from=${encodeURIComponent(start.toISOString())}&to=${encodeURIComponent(end.toISOString())}`;
+};
+function TodayPlan() {
+  const { data } = useRemote<PlannerData>(plannerRange());
+  const now = Date.now();
+  const current = data?.blocks.find((block) => new Date(block.startsAt).getTime() <= now && new Date(block.endsAt).getTime() > now);
+  const next = data?.blocks.find((block) => new Date(block.startsAt).getTime() > now);
+  return <section className="home-section home-planner" aria-labelledby="home-planner-heading"><div className="home-section-heading"><h2 id="home-planner-heading"><CalendarDays size={16}/>Il tuo piano</h2><Link href="/planner" className="text-link">Apri planner<ArrowRight size={13}/></Link></div>{current || next ? <div className="home-planner-preview">{current && <div><span>Adesso</span><strong>{current.title}</strong><small>Fino alle {new Intl.DateTimeFormat("it-IT", { hour: "2-digit", minute: "2-digit" }).format(new Date(current.endsAt))}</small></div>}{next && <div><span>Prossimo</span><strong>{next.title}</strong><small>Alle {new Intl.DateTimeFormat("it-IT", { hour: "2-digit", minute: "2-digit" }).format(new Date(next.startsAt))}</small></div>}</div> : <div className="home-quiet-empty"><p>La giornata è libera.</p><Link href="/planner" className="text-link"><Plus size={14}/>Aggiungi un blocco</Link></div>}</section>;
+}
 
 export function Dashboard() {
   const { data, loading, error, reload } =
@@ -222,6 +237,7 @@ export function Dashboard() {
                 />
               )}
             </section>
+            <TodayPlan />
             <footer className="home-knowledge">
               <div>
                 <Network size={18} />
