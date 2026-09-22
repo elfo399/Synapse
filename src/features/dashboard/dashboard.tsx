@@ -42,12 +42,73 @@ const plannerRange = () => {
   end.setDate(end.getDate() + 1);
   return `/api/planner?from=${encodeURIComponent(start.toISOString())}&to=${encodeURIComponent(end.toISOString())}`;
 };
+const nowMillis = () => Date.now();
 function TodayPlan() {
   const { data } = useRemote<PlannerData>(plannerRange());
-  const now = Date.now();
-  const current = data?.blocks.find((block) => new Date(block.startsAt).getTime() <= now && new Date(block.endsAt).getTime() > now);
-  const next = data?.blocks.find((block) => new Date(block.startsAt).getTime() > now);
-  return <section className="home-section home-planner" aria-labelledby="home-planner-heading"><div className="home-section-heading"><h2 id="home-planner-heading"><CalendarDays size={16}/>Il tuo piano</h2><Link href="/planner" className="text-link">Apri planner<ArrowRight size={13}/></Link></div>{current || next ? <div className="home-planner-preview">{current && <div><span>Adesso</span><strong>{current.title}</strong><small>Fino alle {new Intl.DateTimeFormat("it-IT", { hour: "2-digit", minute: "2-digit" }).format(new Date(current.endsAt))}</small></div>}{next && <div><span>Prossimo</span><strong>{next.title}</strong><small>Alle {new Intl.DateTimeFormat("it-IT", { hour: "2-digit", minute: "2-digit" }).format(new Date(next.startsAt))}</small></div>}</div> : <div className="home-quiet-empty"><p>La giornata è libera.</p><Link href="/planner" className="text-link"><Plus size={14}/>Aggiungi un blocco</Link></div>}</section>;
+  const now = useSyncExternalStore(subscribeToDate, nowMillis, () => 0);
+  const current = data?.blocks.find(
+    (block) =>
+      new Date(block.startsAt).getTime() <= now &&
+      new Date(block.endsAt).getTime() > now,
+  );
+  const next = data?.blocks.find(
+    (block) => new Date(block.startsAt).getTime() > now,
+  );
+  return (
+    <section
+      className="home-section home-planner"
+      aria-labelledby="home-planner-heading"
+    >
+      <div className="home-section-heading">
+        <h2 id="home-planner-heading">
+          <CalendarDays size={16} />
+          Il tuo piano
+        </h2>
+        <Link href="/planner" className="text-link">
+          Apri planner
+          <ArrowRight size={13} />
+        </Link>
+      </div>
+      {current || next ? (
+        <div className="home-planner-preview">
+          {current && (
+            <div>
+              <span>Adesso</span>
+              <strong>{current.title}</strong>
+              <small>
+                Fino alle{" "}
+                {new Intl.DateTimeFormat("it-IT", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }).format(new Date(current.endsAt))}
+              </small>
+            </div>
+          )}
+          {next && (
+            <div>
+              <span>Prossimo</span>
+              <strong>{next.title}</strong>
+              <small>
+                Alle{" "}
+                {new Intl.DateTimeFormat("it-IT", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }).format(new Date(next.startsAt))}
+              </small>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="home-quiet-empty">
+          <p>La giornata è libera.</p>
+          <Link href="/planner" className="text-link">
+            <Plus size={14} />
+            Aggiungi un blocco
+          </Link>
+        </div>
+      )}
+    </section>
+  );
 }
 
 export function Dashboard() {
