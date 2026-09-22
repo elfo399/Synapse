@@ -16,7 +16,10 @@ cleanup() {
   local code=$?
   # This directory was created by mktemp above, never supplied as a deletion target.
   rm -rf -- "$partial"
-  if [[ -n "$was_running" ]]; then docker compose start secondbrain-web >&2 || code=1; fi
+  # `start` only resumes existing containers. During an upgrade a newly added
+  # dependency (such as Ollama) may not exist yet, so Compose must resolve and
+  # create the dependency graph before restoring the web service.
+  if [[ -n "$was_running" ]]; then docker compose up -d --no-build secondbrain-web >&2 || code=1; fi
   exit "$code"
 }
 trap cleanup EXIT
