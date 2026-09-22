@@ -1,102 +1,97 @@
 <div align="center">
 
-<img src="public/icon.svg" alt="Logo Synapse" width="72" height="72" />
+<img src="public/icon.svg" alt="Logo Synapse" width="84" height="84" />
 
 # Synapse
 
-### Le tue idee, finalmente nello stesso posto.
+### Uno spazio per la tua mente.
 
-La tua web app personale per **raccogliere pensieri, dare forma ai progetti<br />e ritrovare ciò che conta**.
+**Raccogli ciò che ti ispira. Trasformalo in idee, progetti e prossimi passi.**
 
-Note · Progetti · Attività · Link · Immagini · Audio
+Note · Planner · Progetti · Conoscenze · Assistente AI locale
 
-**[Scarica Synapse](https://github.com/elfo399/Synapse/archive/refs/heads/main.zip)** &nbsp; · &nbsp; **[Inizia a usarlo](docs/deployment.md)** &nbsp; · &nbsp; [Scopri le funzionalità](#uno-spazio-tante-possibilità)
+**[Inizia con Synapse](docs/deployment.md)** &nbsp; · &nbsp; **[Scarica il progetto](https://github.com/elfo399/Synapse/archive/refs/heads/main.zip)**
 
 </div>
 
-## Assistente AI locale
+![Synapse: la tua Home per idee, attività e progetti da riprendere](docs/screenshots/home.png)
 
-Synapse include un assistente AI opzionale che può cercare nelle tue note, progetti e risorse, mostrando le fonti usate in ogni risposta. Usa Ollama e `llama3.2:3b` sul tuo server: le conversazioni e le conoscenze restano locali. Puoi anche usare la Chat generale, che non legge le note private. [Guida all’AI locale](docs/ai.md).
+Le idee arrivano mentre stai facendo altro: una frase da non perdere, un link da approfondire, un piano per il fine settimana, un progetto che vuoi finalmente iniziare.
 
-![La Home di Synapse: idee da raccogliere, attività di oggi e progetti da riprendere](docs/screenshots/home.png)
+Synapse dà a ogni cosa un posto e ti aiuta a ritrovarla quando serve. È il tuo spazio personale per pensare meglio, tenere il filo e vedere crescere quello che impari.
 
-Un appunto preso al volo. Un articolo da leggere. Un progetto che vuoi realizzare. Synapse dà un posto a tutto questo e ti aiuta a **trasformare ciò che raccogli in qualcosa che puoi usare**.
+## Tutto ciò che conta, a portata di mano
 
-Aprilo per annotare un’idea in pochi secondi, ritrovare una fonte o riprendere un lavoro lasciato a metà. Il tuo spazio cresce insieme a quello che impari.
+| | Con Synapse puoi… |
+| --- | --- |
+| ✦ | **Catturare un’idea subito**: scrivi, incolla un link, aggiungi immagini, documenti o un memo vocale. |
+| ◇ | **Costruire note che restano utili**: titoli, elenchi, collegamenti e contenuti ricchi per dare forma al tuo pensiero. |
+| ✓ | **Sapere cosa fare oggi**: attività, scadenze e Planner tengono in vista il prossimo passo. |
+| ◈ | **Portare avanti i progetti**: obiettivi, materiali e azioni restano insieme, senza perdere il contesto. |
+| ⌕ | **Ritrovare quello che sai**: cerca tra note, etichette, progetti e risorse in pochi istanti. |
+| ✺ | **Scoprire connessioni**: esplora le relazioni tra le tue idee in un grafo 2D o 3D. |
 
-## Uno spazio, tante possibilità
+## Parti da un pensiero. Arriva dove vuoi.
 
-### Cattura l’idea, mentre c’è
+### Cattura senza interrompere il momento
 
-Scrivi un pensiero, incolla un link o uno screenshot, aggiungi un documento oppure registra un memo vocale. Puoi salvare anche senza scegliere un titolo.
+Apri Synapse e salva quello che hai in mente. Non devi decidere subito dove metterlo: le nuove idee aspettano nella tua inbox finché non vuoi organizzarle.
 
-La sezione **Da organizzare** tiene insieme le nuove idee, pronte per quando avrai tempo di dedicarci attenzione.
+Un articolo interessante, una frase letta al momento giusto, una lista per un viaggio o una soluzione a un problema: tutto può diventare il punto di partenza per qualcosa di più grande.
 
-### Dai forma ai tuoi progetti
+### Trasforma il caos in un percorso
 
-Raccogli nello stesso progetto gli appunti, i materiali e le attività che servono a portarlo avanti. Aggiungi scadenze alle prossime azioni e ritrova dalla Home cosa fare oggi.
+Le note si collegano ai progetti, i progetti alle attività, le attività alla tua giornata. Synapse non si limita a conservare informazioni: le tiene vicine a ciò che devi farne.
 
-Un viaggio, una ricerca, un prodotto da costruire: **obiettivo, contesto e prossimi passi restano collegati**.
+Organizza a modo tuo con aree, etichette, preferiti e categorie. Quando un’idea diventa importante, puoi darle struttura senza riscriverla da capo.
 
-### Scrivi note che tornano utili
+### Dai un ritmo alle tue giornate
 
-Crea appunti leggibili con titoli, elenchi, link e immagini. Passa dalla scrittura all’anteprima, affiancale quando ti serve e collega le note tra loro mentre scrivi.
+Il Planner unisce appuntamenti, blocchi di concentrazione, abitudini e attività. Guarda la giornata per ore, pianifica la settimana e lascia spazio anche a quello che vuoi proteggere: studio, allenamento, pause, tempo personale.
 
-Immagini, PDF e registrazioni restano insieme al loro contesto: puoi consultarli, ascoltarli o scaricarli dalla nota.
-
-### Ritrova quello che sai
-
-Cerca nei titoli e nei contenuti, filtra con le etichette o torna ai documenti recenti. I collegamenti ti accompagnano da una nota alle altre idee che la riguardano.
-
-**Meno tempo a cercare. Più tempo per ripartire.**
-
-## Guarda le connessioni prendere forma
-
-Il **grafo delle conoscenze** trasforma i collegamenti in una mappa da esplorare. Ruotala in 3D, avvicinati a un gruppo di idee e apri una nota per seguirne il filo. Puoi anche scegliere la vista 2D o concentrarti sui collegamenti di un solo contenuto.
+## Vedi le tue conoscenze prendere forma
 
 ![Il grafo di Synapse: una mappa esplorabile di note, progetti e risorse](docs/screenshots/graph.png)
 
-Un modo per riscoprire un appunto dimenticato, riconoscere un tema ricorrente o trovare un punto di partenza per la prossima idea.
+Ogni collegamento racconta una storia. Il grafo trasforma note, progetti e risorse in una mappa esplorabile: ruotala in 3D, avvicinati a un gruppo di idee e segui un filo che non avevi ancora visto.
 
-## Come potresti usarlo
+È un modo diverso per ritrovare un appunto dimenticato, riconoscere un tema ricorrente o accorgerti che due idee lontane hanno qualcosa da dirsi.
 
-| Se vuoi…                           | Con Synapse puoi…                                                       |
-| ---------------------------------- | ----------------------------------------------------------------------- |
-| **Studiare un argomento**          | Riunire appunti, fonti e concetti, collegandoli tra loro.               |
-| **Portare avanti un progetto**     | Tenere insieme obiettivo, materiali di riferimento e prossime attività. |
-| **Conservare ciò che impari**      | Costruire una raccolta personale di soluzioni, riflessioni ed esempi.   |
-| **Organizzare la vita quotidiana** | Raccogliere idee per viaggi, letture, interessi e impegni.              |
-| **Fare spazio alle idee**          | Salvare un pensiero subito e rielaborarlo quando sei pronto.            |
+## Un assistente che conosce il tuo spazio
+
+L’Assistente AI locale cerca nelle tue note, nei progetti e nelle risorse per aiutarti a fare il punto. Le risposte mostrano le fonti usate, così puoi sempre tornare al contenuto originale.
+
+Le tue conoscenze restano nel tuo spazio personale: Synapse è pensato per chi vuole organizzarsi senza trasformare i propri pensieri in un prodotto per qualcun altro.
+
+## Per il tuo modo di vivere e lavorare
+
+| Se vuoi… | Synapse ti aiuta a… |
+| --- | --- |
+| Studiare un argomento | Mettere insieme appunti, fonti, domande e collegamenti. |
+| Realizzare un progetto | Tenere vicini obiettivi, materiali e prossime azioni. |
+| Ricordare ciò che impari | Costruire una raccolta personale di idee e soluzioni. |
+| Organizzare la quotidianità | Pianificare impegni, letture, viaggi e piccoli obiettivi. |
+| Fare spazio nella testa | Salvare ora e rielaborare quando hai il momento giusto. |
 
 <details>
-<summary><strong>Guarda una nota dentro Synapse</strong></summary>
+<summary><strong>Guarda una nota in Synapse</strong></summary>
 
-![Una nota in Synapse, con contenuto formattato e collegamenti ad altri appunti](docs/screenshots/note.png)
+<br />
+
+![Una nota Synapse con testo, contenuti e collegamenti](docs/screenshots/note.png)
 
 </details>
 
-## Il tuo spazio personale
+## Il tuo spazio, il tuo ritmo
 
-- **Tutto ha un posto.** Note, attività, progetti, aree, risorse e preferiti, con etichette per organizzarli a modo tuo.
-- **Le tue conoscenze restano con te.** Installi Synapse su un computer o server che controlli e accedi con il tuo account privato.
-- **Puoi mettere da parte senza perdere.** Archivia ciò che hai concluso e riportalo in primo piano quando serve.
-- **Un ambiente in italiano.** Un’interfaccia scura, pensata per lasciare spazio alla lettura e alla scrittura.
-- **Si apre dal browser.** Accedi alla tua istanza da computer o telefono; nei browser compatibili puoi aggiungerla alla schermata Home come app.
-
-Synapse è dedicato all’uso personale. Per leggere e salvare i contenuti serve una connessione alla propria istanza.
-
-## Inizia con una sola idea
-
-**Scarica Synapse, prepara il tuo spazio e salva il primo pensiero.** Puoi organizzarlo, arricchirlo e collegarlo man mano che prende forma.
-
-Synapse è una web app da installare sul proprio computer o server, anche un Raspberry Pi. Il download contiene il progetto da installare; la guida ti accompagna nella configurazione iniziale.
+Synapse è un’app personale in italiano, pensata per aprirsi dal computer o dal telefono e accompagnarti ogni giorno. Puoi aggiungerla alla schermata Home e averla sempre vicina quando arriva un’idea.
 
 <div align="center">
 
-### Il prossimo appunto potrebbe essere l’inizio di qualcosa.
+### Il prossimo pensiero potrebbe essere l’inizio di qualcosa.
 
-**[Scarica Synapse](https://github.com/elfo399/Synapse/archive/refs/heads/main.zip)** &nbsp; · &nbsp; **[Segui la guida per iniziare](docs/deployment.md)**
+**[Inizia con Synapse](docs/deployment.md)** &nbsp; · &nbsp; **[Scarica il progetto](https://github.com/elfo399/Synapse/archive/refs/heads/main.zip)**
 
-[Proponi un’idea](https://github.com/elfo399/Synapse/issues) · [Segnala un problema](https://github.com/elfo399/Synapse/issues) · [Documentazione](docs/technical-guide.md)
+[Proponi un’idea](https://github.com/elfo399/Synapse/issues) · [Segnala un problema](https://github.com/elfo399/Synapse/issues)
 
 </div>
