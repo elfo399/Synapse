@@ -44,7 +44,7 @@ export BACKUP_DIR="$service_root/backups"
 
 docker compose config --quiet
 printf 'Building Synapse commit %s on %s.\n' "$commit" "$(uname -m)"
-docker compose build secondbrain-web
+docker compose build secondbrain-web searxng
 
 # Build first: a compilation failure leaves the live service untouched.
 existing_database="$(docker compose ps -a -q secondbrain-db)"

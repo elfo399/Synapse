@@ -108,12 +108,20 @@ services:
         max-file: "3"
 
   searxng:
-    image: searxng/searxng:latest
+    build:
+      context: ./docker/searxng
+      dockerfile: Dockerfile
+    image: synapse-searxng:local
     restart: unless-stopped
     environment:
       SEARXNG_BASE_URL: ${SEARXNG_PUBLIC_BASE_URL:-http://searxng:8080/}
-    volumes:
-      - ./docker/searxng/settings.yml:/etc/searxng/settings.yml:ro
+      SEARXNG_SETTINGS_PATH: /usr/local/searxng/synapse-settings.yml
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
     security_opt:
       - no-new-privileges:true
     cap_drop:

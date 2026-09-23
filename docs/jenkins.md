@@ -8,6 +8,20 @@ La pipeline registra il commit e usa una chiave SSH dedicata per richiamare lo s
 
 Lo script installato in `/home/elfo/services/synapse/deploy.sh` proviene da `scripts/deploy-jenkins.sh`. Verifica che il commit appartenga a main, crea una directory di release, compila l’immagine ARM64 sul Raspberry e, nelle installazioni successive, salva un backup coordinato di database e allegati prima di applicare le migrazioni e aggiornare i container. La build riesce solo quando il servizio risulta healthy.
 
+## Immagine SearXNG nel deploy
+
+Lo script remoto costruisce `secondbrain-web` e `searxng` prima di ricreare qualunque container. L'immagine `synapse-searxng:local` contiene `docker/searxng/settings.yml` con permessi di lettura stabili, quindi un deploy Jenkins non dipende dai permessi del file host e non richiede `chmod` manuali sul Raspberry Pi.
+
+Poiché `deploy.sh` vive fuori dalle release, applica una volta questa nuova versione sul Raspberry prima del primo deploy che la deve usare:
+
+```bash
+git -C /home/elfo/services/synapse/repository fetch origin main
+git -C /home/elfo/services/synapse/repository show origin/main:scripts/deploy-jenkins.sh \
+  | install -m 0750 /dev/stdin /home/elfo/services/synapse/deploy.sh
+```
+
+Gli aggiornamenti successivi non richiedono più alcun intervento sui permessi SearXNG.
+
 ## Persistenza
 
 - Configurazione privata: `/home/elfo/services/synapse/.env`, fuori da Git e dalle release.

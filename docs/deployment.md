@@ -71,6 +71,23 @@ docker compose exec secondbrain-db pg_isready -U secondbrain -d secondbrain
 
 Use [operations](operations.md) for backups and upgrades. After initial login, remove `INITIAL_ADMIN_PASSWORD` from `.env` and recreate the web container. Existing accounts are never reset during bootstrap.
 
+### Configurazione e verifica di SearXNG
+
+SearXNG usa l'immagine locale `synapse-searxng:local`: durante la build, `docker/searxng/Dockerfile` incorpora `docker/searxng/settings.yml` in `/usr/local/searxng/synapse-settings.yml` con permessi di sola lettura (`0644`). Il percorso è esterno al volume `/etc/searxng` dichiarato dall'immagine ufficiale, quindi nemmeno un vecchio volume anonimo può mascherare la configurazione. Non viene usato un bind mount del file host, perché i permessi di un mount possono cambiare tra Windows, Raspberry Pi e una ricreazione Docker, impedendo al servizio non privilegiato di leggere la configurazione.
+
+Per modificare SearXNG, aggiorna `docker/searxng/settings.yml` nel repository e distribuisci il commit: il deploy Jenkins costruisce prima sia `secondbrain-web` sia `searxng`, poi ricrea i container senza eliminare volumi o dati. Non sono pubblicate porte SearXNG sull'host.
+
+Dopo un deploy puoi verificare servizio, permessi e ricerca Web con:
+
+```bash
+docker compose ps searxng
+docker compose logs --tail=100 searxng
+docker compose exec searxng sh -lc 'test -r /usr/local/searxng/synapse-settings.yml && wget -q -O /dev/null http://127.0.0.1:8080/healthz'
+docker compose exec secondbrain-web node -e 'fetch("http://searxng:8080/search?q=Synapse&format=json").then(async r => { if (!r.ok) process.exit(1); const body = await r.json(); console.log(`Risultati: ${body.results.length}`) })'
+```
+
+Se il servizio non risponde, controlla prima `docker compose logs searxng`. Un errore di configurazione o di permessi riguarda soltanto la ricerca Web: note, Planner e le altre funzioni locali restano disponibili.
+
 ## Troubleshooting
 
 ## AI locale e ricerca Web
