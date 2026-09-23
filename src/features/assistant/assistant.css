@@ -46,7 +46,7 @@
 .assistant-empty > .assistant-empty-content {
   box-sizing: border-box;
   display: flex;
-  width: min(620px, calc(100% - 48px));
+  width: min(760px, calc(100% - 48px));
   min-height: 0;
   padding: 40px 0 30px;
   flex: 1;
@@ -131,8 +131,9 @@
 .assistant-chat > .assistant-composer,
 .assistant-empty > .assistant-composer {
   box-sizing: border-box;
-  width: min(760px, calc(100% - 44px));
-  margin: 0 auto 18px;
+  width: calc(100% - 40px);
+  max-width: none;
+  margin: 0 20px 18px;
   flex: 0 0 auto;
 }
 
@@ -151,14 +152,14 @@
   }
 
   .assistant-empty > .assistant-empty-content {
-    width: min(100% - 32px, 620px);
+    width: min(100% - 32px, 760px);
     padding: 32px 0 24px;
   }
 
   .assistant-chat > .assistant-composer,
   .assistant-empty > .assistant-composer {
     width: calc(100% - 32px);
-    margin-bottom: max(14px, env(safe-area-inset-bottom));
+    margin: 0 16px max(14px, env(safe-area-inset-bottom));
     padding-inline: 0;
   }
 }
