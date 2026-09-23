@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { aiConfig, DEFAULT_OLLAMA_MODEL, openOllamaStream } from "@/server/ai";
+import { aiConfig, buildSystemPrompt, DEFAULT_OLLAMA_MODEL, directResponse, identityResponse, openOllamaStream, SYNAPSE_IDENTITY_PROMPT } from "@/server/ai";
 
 const originalEnv = { ...process.env };
 
@@ -12,6 +12,24 @@ afterEach(() => {
 });
 
 describe("configurazione Ollama", () => {
+  it("risponde all'identità di Synapse senza fonti o inferenza", () => {
+    expect(identityResponse("Come ti chiami?")).toBe("Mi chiamo Synapse. Sono il tuo assistente AI personale.");
+    expect(directResponse("Chi sei?")).toContain("Sono Synapse");
+    expect(directResponse("Sei una persona?")).toContain("non sono una persona");
+  });
+
+  it("descrive il modello configurato in modo trasparente", () => {
+    process.env.OLLAMA_MODEL = "qwen3:1.7b";
+
+    expect(directResponse("Quale modello utilizzi?")).toContain("qwen3:1.7b");
+    expect(directResponse("Quale modello utilizzi?")).toContain("Ollama");
+  });
+
+  it("usa un unico prompt identitario con o senza fonti", () => {
+    expect(buildSystemPrompt("DIRECT", [])).toContain(SYNAPSE_IDENTITY_PROMPT);
+    expect(buildSystemPrompt("LOCAL", [{ id: "note-1", citation: "[S1]", title: "Nota", type: "NOTE", excerpt: "Contenuto", href: "/items/note-1", sourceKind: "SYNAPSE" }])).toContain(SYNAPSE_IDENTITY_PROMPT);
+  });
+
   it("usa Qwen3 1.7B come modello predefinito", () => {
     delete process.env.OLLAMA_MODEL;
 
@@ -46,6 +64,7 @@ describe("configurazione Ollama", () => {
         think: false,
       },
     );
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).messages[0].content).toContain(SYNAPSE_IDENTITY_PROMPT);
   });
 
   it("mantiene il payload compatibile con Llama 3.2", async () => {
