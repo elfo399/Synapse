@@ -49,6 +49,7 @@ enum TimeBlockStatus {
 }
 
 enum AiConversationMode {
+  AUTO
   KNOWLEDGE
   GENERAL
   WEB
@@ -100,7 +101,7 @@ model AiConversation {
   userId String
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   title String @db.VarChar(160)
-  mode AiConversationMode @default(KNOWLEDGE)
+  mode AiConversationMode @default(AUTO)
   webSearchEnabled Boolean @default(false)
   reasoningEnabled Boolean @default(false)
   createdAt DateTime @default(now())

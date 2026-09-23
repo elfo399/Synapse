@@ -1,0 +1,2 @@
+ALTER TABLE "AiConversation"
+  ALTER COLUMN "mode" SET DEFAULT 'AUTO';

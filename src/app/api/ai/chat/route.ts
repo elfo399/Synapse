@@ -1,6 +1,6 @@
 import { z } from "@/lib/validation";
 import { requireUser } from "@/lib/auth";
-import { beginGeneration, completeGeneration, openOllamaStream, releaseGeneration } from "@/server/ai";
+import { beginAutomaticGeneration, completeGeneration, openRoutedOllamaStream, releaseGeneration } from "@/server/ai";
 import { HttpError, json, readJson } from "@/server/http";
 
 const inputSchema = z.object({ conversationId: z.string().min(1).max(128), message: z.string().trim().min(1).max(8_000), webSearch: z.boolean(), reasoning: z.boolean() }).strict();
@@ -8,20 +8,20 @@ export async function POST(request: Request) {
   try {
     const input = inputSchema.parse(await readJson(request)); const user = await requireUser(request);
     const options = { webSearch: input.webSearch, reasoning: input.reasoning };
-    const started = await beginGeneration(user.id, input.conversationId, input.message, options);
+    const started = await beginAutomaticGeneration(user.id, input.conversationId, input.message, options);
     if (started.direct) {
       await completeGeneration(started.conversation.id, started.direct, [], options); releaseGeneration();
-      const payload = `data: ${JSON.stringify({ type: "token", token: started.direct })}\n\ndata: ${JSON.stringify({ type: "done", sources: [] })}\n\n`;
+      const payload = `data: ${JSON.stringify({ type: "status", phase: "generating" })}\n\ndata: ${JSON.stringify({ type: "token", token: started.direct })}\n\ndata: ${JSON.stringify({ type: "done", sources: [] })}\n\n`;
       return new Response(payload, { headers: { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-store, no-transform", Connection: "keep-alive" } });
     }
-    const upstream = await openOllamaStream(started.conversation.mode, input.message, started.history, started.sources, request.signal, options.reasoning);
+    const upstream = await openRoutedOllamaStream(started.strategy, input.message, started.history, started.sources, request.signal, options.reasoning);
     const encoder = new TextEncoder(); const decoder = new TextDecoder(); let answer = "";
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
         const reader = upstream.getReader(); let pending = "";
         const send = (event: unknown) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
         try {
-          if (options.webSearch) send({ type: "web", count: started.webCount });
+          send({ type: "status", phase: started.strategy === "LOCAL" ? "searching_knowledge" : started.strategy === "WEB" ? "searching_web" : started.strategy === "COMBINED" ? "searching_web" : "generating" }); if (started.strategy === "WEB" || started.strategy === "COMBINED") send({ type: "web", count: started.webCount }); send({ type: "status", phase: options.reasoning ? "reasoning" : "generating" });
           while (true) {
             const chunk = await reader.read(); if (chunk.done) break;
             pending += decoder.decode(chunk.value, { stream: true }); const lines = pending.split("\n"); pending = lines.pop() ?? "";

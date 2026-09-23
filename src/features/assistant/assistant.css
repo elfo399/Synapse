@@ -22,7 +22,8 @@
 .assistant-toggles .assistant-think-toggle input { display: block; flex: 0 0 30px; }
 .assistant-composer-actions > .button-primary, .assistant-composer-actions > .button-secondary { flex: 0 0 34px; margin-left: auto; }
 .assistant-composer-actions > .button-primary svg, .assistant-composer-actions > .button-secondary svg { display: block; margin: 0; }
-.assistant-composer-actions > .button-primary svg, .assistant-composer-actions > .button-secondary svg { transform: translateY(6px); }
+.assistant-composer-actions > .button-primary, .assistant-composer-actions > .button-secondary { display: grid; place-items: center; line-height: 1; }.assistant-composer-actions > .button-primary svg, .assistant-composer-actions > .button-secondary svg { transform: none; }
 .assistant-think-toggle input::after { top: 50%; transform: translateY(-50%); }
 .assistant-think-toggle input:checked::after { transform: translate(12px, -50%); }
+.assistant-pending { color: var(--text-muted); font-size: 13px; font-style: italic; }.assistant-pending > span { display: block; margin-bottom: 6px; color: var(--text-muted); font-size: 10px; font-style: normal; font-weight: 550; letter-spacing: .07em; text-transform: uppercase; }.assistant-pending p { margin: 0; }.assistant-pending i { display: inline-block; width: 6px; height: 6px; margin-left: 5px; border-radius: 50%; background: var(--accent); animation: assistant-pulse 1.4s ease-in-out infinite; }@keyframes assistant-pulse { 50% { opacity: .35; transform: scale(.72); } }@media (prefers-reduced-motion: reduce) { .assistant-pending i { animation: none; } }
 @media (max-width: 760px) { .assistant-composer-actions { flex-wrap: wrap; }.assistant-toggles { order: 2; flex-basis: 100%; overflow-x: auto; justify-content: flex-start; }.assistant-toggles .assistant-think-toggle { font-size: 11px; } }
