@@ -17,6 +17,7 @@ import {
   Check,
   CheckSquare,
   CalendarDays,
+  ChevronDown,
   FileText,
   Folder,
   Hash,
@@ -42,27 +43,41 @@ import { Modal } from "./ui";
 import "./workspace-shell.css";
 
 const navigation = [
-  [
-    { href: "/", label: "Inizio", icon: House },
-    { href: "/inbox", label: "Da organizzare", icon: Inbox },
-    { href: "/notes", label: "Note", icon: FileText },
-    { href: "/tasks", label: "Attività", icon: CheckSquare },
-    { href: "/planner", label: "Planner", icon: CalendarDays },
-    { href: "/assistant", label: "Assistente AI", icon: Bot },
-  ],
-  [
-    { href: "/projects", label: "Progetti", icon: Folder },
-    { href: "/areas", label: "Aree", icon: Layers3 },
-    { href: "/resources", label: "Risorse", icon: Box },
-    { href: "/bookmarks", label: "Preferiti", icon: Bookmark },
-  ],
-  [
-    { href: "/graph", label: "Grafo", icon: Network },
-    { href: "/tags", label: "Etichette", icon: Hash },
-    { href: "/archive", label: "Archivio", icon: Archive },
-    { href: "/settings", label: "Configurazione", icon: Settings2 },
-    { href: "/account", label: "Account", icon: UserRound },
-  ],
+  {
+    title: "Organizza",
+    items: [
+      { href: "/", label: "Inizio", icon: House },
+      { href: "/inbox", label: "Da organizzare", icon: Inbox },
+      { href: "/notes", label: "Note", icon: FileText },
+      { href: "/tasks", label: "Attività", icon: CheckSquare },
+      { href: "/planner", label: "Planner", icon: CalendarDays },
+    ],
+  },
+  {
+    title: "Le tue conoscenze",
+    items: [
+      { href: "/assistant", label: "Assistente AI", icon: Bot },
+      { href: "/projects", label: "Progetti", icon: Folder },
+      { href: "/areas", label: "Aree", icon: Layers3 },
+      { href: "/resources", label: "Risorse", icon: Box },
+      { href: "/bookmarks", label: "Preferiti", icon: Bookmark },
+    ],
+  },
+  {
+    title: "Esplora",
+    items: [
+      { href: "/graph", label: "Grafo", icon: Network },
+      { href: "/tags", label: "Etichette", icon: Hash },
+      { href: "/archive", label: "Archivio", icon: Archive },
+    ],
+  },
+  {
+    title: "Spazio",
+    items: [
+      { href: "/settings", label: "Configurazione", icon: Settings2 },
+      { href: "/account", label: "Account", icon: UserRound },
+    ],
+  },
 ];
 function subscribeDensity(callback: () => void) {
   window.addEventListener("storage", callback);
@@ -99,6 +114,15 @@ export function WorkspaceShell({
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [preferencesOpen, setPreferencesOpen] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<string[]>(() =>
+    navigation
+      .filter(
+        (group) =>
+          group.title === "Organizza" ||
+          group.items.some((item) => item.href === pathname),
+      )
+      .map((group) => group.title),
+  );
   const [toast, setToast] = useState("");
   const [signingOut, setSigningOut] = useState(false);
   const compact = useSyncExternalStore(
@@ -171,6 +195,13 @@ export function WorkspaceShell({
       notify("Il browser non consente di salvare questa preferenza.");
     }
   }
+  function toggleNavigationGroup(title: string) {
+    setExpandedGroups((groups) =>
+      groups.includes(title)
+        ? groups.filter((group) => group !== title)
+        : [...groups, title],
+    );
+  }
   const navigationContent = (
     <>
       <Link href="/" className="brand" onClick={() => setMobileOpen(false)}>
@@ -191,21 +222,43 @@ export function WorkspaceShell({
         <kbd>Ctrl K</kbd>
       </button>
       <nav aria-label="Pagine">
-        {navigation.map((group, index) => (
-          <div className="nav-group" key={index}>
-            {group.map((item) => (
-              <Link
-                className={`nav-link ${pathname === item.href ? "active" : ""}`}
-                href={item.href}
-                key={item.href}
-                aria-current={pathname === item.href ? "page" : undefined}
-                onClick={() => setMobileOpen(false)}
+        {navigation.map((group) => (
+          <section
+            className="nav-group"
+            data-expanded={expandedGroups.includes(group.title)}
+            key={group.title}
+          >
+            <h2>
+              <button
+                type="button"
+                className="nav-group-toggle"
+                aria-expanded={expandedGroups.includes(group.title)}
+                onClick={() => toggleNavigationGroup(group.title)}
               >
-                <item.icon size={16} strokeWidth={1.6} />
-                <span>{item.label}</span>
-              </Link>
-            ))}
-          </div>
+                <span>{group.title}</span>
+                <ChevronDown size={13} aria-hidden="true" />
+              </button>
+            </h2>
+            <div className="nav-group-items">
+              {group.items.map((item) => (
+                <Link
+                  className={`nav-link ${pathname === item.href ? "active" : ""}`}
+                  href={item.href}
+                  key={item.href}
+                  aria-current={pathname === item.href ? "page" : undefined}
+                  onClick={() => {
+                    if (!expandedGroups.includes(group.title)) {
+                      setExpandedGroups((groups) => [...groups, group.title]);
+                    }
+                    setMobileOpen(false);
+                  }}
+                >
+                  <item.icon size={16} strokeWidth={1.6} />
+                  <span>{item.label}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
         ))}
       </nav>
       <div className="sidebar-bottom">
@@ -281,7 +334,9 @@ export function WorkspaceShell({
                 <span className="workspace-location">Spazio personale</span>
                 <span className="workspace-location">/</span>
                 <strong>
-                  {navigation.flat().find((item) => item.href === pathname)
+                  {navigation
+                    .flatMap((group) => group.items)
+                    .find((item) => item.href === pathname)
                     ?.label || "Documento"}
                 </strong>
               </span>

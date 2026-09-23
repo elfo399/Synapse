@@ -28,6 +28,7 @@ import {
   queueAttachmentDeletion,
   drainAttachmentDeletions,
 } from "./attachments";
+import { queueItemEmbedding } from "./ai-index";
 
 async function setTags(
   tx: Prisma.TransactionClient,
@@ -195,6 +196,7 @@ export async function createItemInTransaction(
   await setParents(tx, userId, item.id, input.parentIds);
   await syncWikiLinks(tx, userId, item.id, input.content);
   await resolveNewTitle(tx, userId, item.id, item.titleNormalized);
+  await queueItemEmbedding(tx, userId, item.id, item.version);
   return getItem(userId, item.id, tx);
 }
 
@@ -238,7 +240,7 @@ export async function updateItem(
     }
     const title = input.title ?? previous.title;
     const normalized = normalizeIdentity(title);
-    await tx.item.update({
+    const updated = await tx.item.update({
       where: { userId_id: { userId, id } },
       data: {
         title,
@@ -272,6 +274,7 @@ export async function updateItem(
     if (title !== previous.title)
       await propagateTitleRename(tx, userId, previous.titleNormalized, title);
     await resolveNewTitle(tx, userId, id, normalized);
+    await queueItemEmbedding(tx, userId, id, updated.version);
     return getItem(userId, id, tx);
   });
 }

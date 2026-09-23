@@ -24,6 +24,8 @@
     "db:bootstrap": "tsx scripts/bootstrap.ts",
     "db:seed": "tsx scripts/seed.ts",
     "db:studio": "prisma studio",
+    "ai:reindex": "tsx scripts/ai-reindex.ts",
+    "ai:rebuild": "tsx scripts/ai-reindex.ts --rebuild",
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down"
   },

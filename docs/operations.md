@@ -44,6 +44,20 @@ Verify note contents, authentication, wikilinks, relations and search, plus byte
 
 ## Upgrade
 
+## Indice AI
+
+I vettori pgvector sono contenuti nel dump PostgreSQL e quindi fanno parte dei backup normali. Se serve, possono essere rigenerati dagli Item canonici senza toccare allegati o note:
+
+```bash
+docker compose exec secondbrain-web npm run ai:reindex
+```
+
+Per una ricostruzione completa richiesta esplicitamente:
+
+```bash
+docker compose exec secondbrain-web npm run ai:rebuild
+```
+
 1. Record the running commit and image ID (`git rev-parse HEAD`, `docker image inspect secondbrain:local --format '{{.Id}}'`).
 2. Make and copy off-device a verified backup.
 3. Read the release/migration notes. Stop if a migration needs a separate manual data conversion.

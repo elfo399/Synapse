@@ -13,6 +13,8 @@ services:
         condition: service_healthy
       ollama:
         condition: service_healthy
+      searxng:
+        condition: service_started
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-secondbrain}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@secondbrain-db:5432/${POSTGRES_DB:-secondbrain}?schema=public
@@ -25,9 +27,15 @@ services:
       MAX_ATTACHMENT_SIZE_MB: ${MAX_ATTACHMENT_SIZE_MB:-25}
       AI_ENABLED: "true"
       OLLAMA_BASE_URL: http://ollama:11434
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+      OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-qwen3:1.7b}
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-qwen3-embedding:0.6b}
       OLLAMA_TIMEOUT_MS: ${OLLAMA_TIMEOUT_MS:-90000}
       AI_MAX_TOKENS: ${AI_MAX_TOKENS:-500}
+      AI_CONTEXT_TOKENS: ${AI_CONTEXT_TOKENS:-4096}
+      WEB_SEARCH_ENABLED: ${WEB_SEARCH_ENABLED:-true}
+      WEB_SEARCH_MAX_RESULTS: ${WEB_SEARCH_MAX_RESULTS:-3}
+      WEB_SEARCH_TIMEOUT_MS: ${WEB_SEARCH_TIMEOUT_MS:-8000}
+      SEARXNG_BASE_URL: http://searxng:8080
     volumes:
       - secondbrain-attachments:/data/attachments
     ports:
@@ -43,7 +51,7 @@ services:
         max-file: "3"
 
   secondbrain-db:
-    image: postgres:17-bookworm
+    image: pgvector/pgvector:pg17
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-secondbrain}
@@ -67,7 +75,11 @@ services:
     image: ollama/ollama:latest
     restart: unless-stopped
     environment:
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+      OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-qwen3:1.7b}
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-qwen3-embedding:0.6b}
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      OLLAMA_KEEP_ALIVE: "10m"
     entrypoint: ["/bin/sh", "-ec"]
     command:
       - |
@@ -75,7 +87,8 @@ services:
         server_pid=$$!
         trap 'kill "$$server_pid"; wait "$$server_pid"' TERM INT
         until ollama list >/dev/null 2>&1; do sleep 1; done
-        ollama pull "$$OLLAMA_MODEL" || true
+        ollama list | grep -q "$$OLLAMA_CHAT_MODEL" || ollama pull "$$OLLAMA_CHAT_MODEL"
+        ollama list | grep -q "$$OLLAMA_EMBEDDING_MODEL" || ollama pull "$$OLLAMA_EMBEDDING_MODEL"
         wait "$$server_pid"
     volumes:
       - ollama-models:/root/.ollama
@@ -92,6 +105,23 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  searxng:
+    image: searxng/searxng:latest
+    restart: unless-stopped
+    environment:
+      SEARXNG_BASE_URL: ${SEARXNG_PUBLIC_BASE_URL:-http://searxng:8080/}
+    volumes:
+      - ./docker/searxng/settings.yml:/etc/searxng/settings.yml:ro
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
 
 volumes:
   secondbrain-data:

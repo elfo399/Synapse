@@ -9,7 +9,8 @@
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  padding: 24px 14px 14px;
+  padding: 18px 14px 12px;
+  overflow: hidden;
   z-index: 30;
 }
 .brand {
@@ -23,7 +24,7 @@
 }
 .sidebar .brand {
   padding: 0 10px;
-  margin-bottom: 28px;
+  margin-bottom: 20px;
 }
 .brand-mark {
   display: inline-flex;
@@ -42,7 +43,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   font-size: 12px;
-  margin-bottom: 18px;
+  margin-bottom: 12px;
 }
 .sidebar-search span {
   flex: 1;
@@ -54,25 +55,61 @@
 }
 .sidebar nav {
   flex: 1;
-  overflow-y: auto;
+  overflow: hidden;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 .nav-group {
-  padding-bottom: 14px;
-  margin-bottom: 14px;
-  border-bottom: 1px solid var(--border);
+  display: grid;
+  gap: 1px;
 }
-.nav-group:last-child {
-  border: 0;
+.nav-group h2 {
   margin: 0;
+}
+.nav-group-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 24px;
+  padding: 3px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  background: transparent;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-align: left;
+  text-transform: uppercase;
+}
+.nav-group-toggle:hover {
+  background: var(--surface);
+  color: var(--text-secondary);
+}
+.nav-group-toggle svg {
+  transition: transform var(--duration-fast);
+}
+.nav-group[data-expanded="false"] .nav-group-toggle svg {
+  transform: rotate(-90deg);
+}
+.nav-group-items {
+  display: grid;
+  gap: 1px;
+  overflow: hidden;
+}
+.nav-group[data-expanded="false"] .nav-group-items {
+  display: none;
 }
 .nav-link {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 35px;
-  padding: 7px 10px;
-  margin: 2px 0;
+  min-height: 30px;
+  padding: 5px 10px;
+  margin: 0;
   color: var(--text-secondary);
   border-radius: var(--radius-sm);
   font-size: 12px;
@@ -101,10 +138,11 @@
 .sidebar-bottom {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding-top: 18px;
+  gap: 3px;
+  padding-top: 8px;
 }
 .sidebar-capture {
+  min-height: 34px;
   justify-content: flex-start;
   background: transparent;
   color: var(--text-secondary);
@@ -120,7 +158,7 @@
   display: flex;
   gap: 10px;
   align-items: center;
-  padding: 8px 10px;
+  padding: 6px 10px;
   background: transparent;
   border: 0;
   color: var(--text-muted);
@@ -137,7 +175,7 @@
   align-items: center;
   gap: 9px;
   border-top: 1px solid var(--border);
-  padding: 15px 4px 0;
+  padding: 10px 4px 0;
 }
 .avatar {
   display: flex;

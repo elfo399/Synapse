@@ -21,7 +21,7 @@ openssl rand -hex 32
 
 Put the two independent random values in `POSTGRES_PASSWORD` and `BETTER_AUTH_SECRET`. Set `INITIAL_ADMIN_EMAIL`, a strong `INITIAL_ADMIN_PASSWORD` of at least 12 characters, and your final `BETTER_AUTH_URL`. Leave `WEB_BIND_ADDRESS=127.0.0.1` for Tailscale Serve.
 
-The standard Compose deployment also starts a private Ollama container for the Synapse assistant. It needs no host installation and exposes no AI port. The first start downloads `llama3.2:3b` into the persistent `ollama-models` volume; follow that one-time download with `docker compose logs -f ollama`.
+The standard Compose deployment also starts a private Ollama container for the Synapse assistant. It needs no host installation and exposes no AI port. The first start downloads `qwen3:1.7b` into the persistent `ollama-models` volume; follow that one-time download with `docker compose logs -f ollama`. Existing downloaded models remain in that volume when the configured default changes.
 
 ```bash
 docker compose up -d --build --wait
@@ -72,6 +72,20 @@ docker compose exec secondbrain-db pg_isready -U secondbrain -d secondbrain
 Use [operations](operations.md) for backups and upgrades. After initial login, remove `INITIAL_ADMIN_PASSWORD` from `.env` and recreate the web container. Existing accounts are never reset during bootstrap.
 
 ## Troubleshooting
+
+## AI locale e ricerca Web
+
+Il Compose standard avvia quattro servizi privati: `secondbrain-web`, `secondbrain-db` (PostgreSQL + pgvector), `ollama` e `searxng`. Solo Synapse pubblica la porta Web; PostgreSQL, Ollama e SearXNG non sono esposti alla LAN o a Internet.
+
+Al primo avvio Ollama scarica una sola volta `qwen3:1.7b` e `qwen3-embedding:0.6b` nel volume `ollama-models`. Dopo un aggiornamento:
+
+```bash
+git pull
+docker compose up -d --build
+docker compose exec secondbrain-web npm run ai:reindex
+```
+
+Per controllare lo stato dei modelli e l'indice usa la pagina Assistente AI. SearXNG esegue richieste pubbliche solo quando l'utente sceglie una modalità Web.
 
 | Symptom                                            | Check                                                                                                                                                                             |
 | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

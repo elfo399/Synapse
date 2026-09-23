@@ -1,0 +1,20 @@
+use_default_settings: true
+
+server:
+  bind_address: "0.0.0.0"
+  port: 8080
+  # The service has no published port and is reachable only from Synapse.
+  secret_key: "synapse-private-searxng-instance"
+  limiter: false
+  public_instance: false
+
+search:
+  formats:
+    - html
+    - json
+
+enabled_plugins:
+  - 'Hash plugin'
+  - 'Self Information'
+  - 'Tracker URL remover'
+  - 'Ahmia blacklist'

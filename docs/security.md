@@ -17,6 +17,8 @@ Synapse is intended for a private deployment reachable through a trusted TLS end
 | Information disclosure | Private API responses use `no-store`; health endpoint exposes readiness only; generic unexpected-error responses.                   |
 | Headers                | Application security headers restrict framing, content sniffing, referrer and browser capabilities.                                 |
 | Container              | Non-root web UID, removed Linux capabilities, no-new-privileges, rotating logs; no published production database port.              |
+| AI locale              | Ollama, pgvector e chunk restano nella rete Docker privata; il recupero vettoriale applica il filtro proprietario in ogni query.      |
+| Ricerca Web            | SearXNG non ha una porta pubblicata; riceve solo la domanda utente e restituisce al massimo tre snippet non attendibili.              |
 | Secrets                | Runtime environment only; `.env`/backups excluded from Git and build context; separate database and auth secrets.                   |
 | PWA                    | Service worker does not cache private APIs or notes and does not queue offline mutations.                                           |
 

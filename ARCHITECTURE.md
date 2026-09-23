@@ -8,7 +8,7 @@ flowchart LR
     HTTP --> Services[Item · relation · wikilink · search · graph services]
     Services --> Domain[Zod schemas and pure domain functions]
     Services --> Prisma[Prisma client]
-    Prisma --> PG[(PostgreSQL 17)]
+    Prisma --> PG[(PostgreSQL 17 + pgvector)]
     HTTP --> Auth[Better Auth sessions]
     Auth --> PG
     TLS[Tailscale Serve or TLS reverse proxy] --> HTTP

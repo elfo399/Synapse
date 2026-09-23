@@ -106,7 +106,7 @@ Commit every generated migration and review its SQL. Use `db:migrate:prod` (`pri
 | `BETTER_AUTH_SECRET`                             | Required random session/authentication secret, at least 32 characters.                 |
 | `BETTER_AUTH_URL`                                | Exact external origin, including HTTPS scheme; no wildcard origins.                    |
 | `INITIAL_ADMIN_EMAIL` / `INITIAL_ADMIN_PASSWORD` | Required only when creating the first account; no default credentials.                 |
-| `INITIAL_ADMIN_NAME`                             | Initial display name; defaults to `My Synapse`.                                        |
+| `INITIAL_ADMIN_NAME`                             | Initial display name; defaults to `Synapse`.                                           |
 | `WEB_BIND_ADDRESS` / `WEB_PORT`                  | Host web binding; default `127.0.0.1:3000`.                                            |
 | `BACKUP_DIR`                                     | Optional backup destination used by the Bash scripts; default `./backups`.             |
 | `COMPOSE_FILE` / `COMPOSE_PROJECT_NAME`          | Standard Compose overrides, also honored by backup/restore.                            |

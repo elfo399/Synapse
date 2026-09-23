@@ -51,6 +51,14 @@ enum TimeBlockStatus {
 enum AiConversationMode {
   KNOWLEDGE
   GENERAL
+  WEB
+  COMBINED
+}
+
+enum AiEmbeddingJobState {
+  PENDING
+  PROCESSING
+  FAILED
 }
 
 enum AiMessageRole {
@@ -83,6 +91,8 @@ model User {
   plannerTemplates PlannerTemplate[]
   timeSessions TimeSession[]
   aiConversations AiConversation[]
+  embeddingChunks ItemEmbeddingChunk[]
+  embeddingJobs AiEmbeddingJob[]
 }
 
 model AiConversation {
@@ -91,6 +101,8 @@ model AiConversation {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   title String @db.VarChar(160)
   mode AiConversationMode @default(KNOWLEDGE)
+  webSearchEnabled Boolean @default(false)
+  reasoningEnabled Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   messages AiMessage[]
@@ -105,6 +117,7 @@ model AiMessage {
   content String @db.Text
   state AiMessageState @default(COMPLETE)
   sources Json?
+  options Json?
   createdAt DateTime @default(now())
   @@index([conversationId, createdAt])
 }
@@ -183,12 +196,47 @@ model Item {
   wikiReferences WikiReference[]
   attachments Attachment[]
   timeBlocks TimeBlock[]
+  embeddingChunks ItemEmbeddingChunk[]
+  embeddingJobs AiEmbeddingJob[]
   @@unique([userId, id])
   @@unique([userId, titleNormalized])
   @@index([userId, archivedAt, updatedAt(sort: Desc)])
   @@index([userId, type, archivedAt, status])
   @@index([userId, inbox, archivedAt])
   @@index([userId, dueAt])
+}
+
+model ItemEmbeddingChunk {
+  id String @id @default(cuid())
+  userId String
+  itemId String
+  itemVersion Int
+  chunkIndex Int
+  content String @db.Text
+  contentHash String @db.VarChar(64)
+  embedding Unsupported("vector(1024)")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item Item @relation(fields: [userId, itemId], references: [userId, id], onDelete: Cascade)
+  @@unique([userId, itemId, chunkIndex])
+  @@index([userId, itemId, itemVersion])
+}
+
+model AiEmbeddingJob {
+  id String @id @default(cuid())
+  userId String
+  itemId String
+  itemVersion Int
+  state AiEmbeddingJobState @default(PENDING)
+  attempts Int @default(0)
+  lastError String? @db.VarChar(500)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item Item @relation(fields: [userId, itemId], references: [userId, id], onDelete: Cascade)
+  @@unique([userId, itemId])
+  @@index([state, updatedAt])
 }
 
 model TimeBlock {
