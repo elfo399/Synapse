@@ -50,10 +50,37 @@ function plainText(value: string) { return value.replace(/```[\s\S]*?```/g, "").
 function normalizedQuestion(question: string) { return question.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase(); }
 export function knowledgeScope(question: string): KnowledgeScope | null { const value = normalizedQuestion(question); if (/\bprogett[io]\b/.test(value)) return "PROJECT"; if (/\bare[ae]\b/.test(value)) return "AREA"; if (/\brisors[ae]\b/.test(value)) return "RESOURCE"; if (/\b(attivita|task|compit[io])\b/.test(value)) return "TASK"; if (/\b(note|nota)\b/.test(value)) return "NOTE"; if (/\b(preferit[io]|segnalibr[io]|bookmark)\b/.test(value)) return "BOOKMARK"; return null; }
 export function asksForCatalog(question: string) { return /\b(tutt[ie]|elenco|lista|quali|mostra|fammi vedere)\b/.test(normalizedQuestion(question)); }
+export function asksForProjectCatalog(question: string) {
+  const value = normalizedQuestion(question);
+  if (!/\bprogetti?\b/.test(value)) return false;
+  return asksForCatalog(value) || /\b(abbiamo|ho|hai|nostr[ioe]|sto lavorando|lavorando|esistono|ci sono|quanti|numero)\b/.test(value);
+}
 
 function sourceExcerpt(item: KnowledgeItem, fallback = "", catalog = false) { const tags = item.tags.slice(0, 3).map(({ tag }) => tag.name).join(", "); const content = plainText(item.content); return catalog ? [`Stato: ${item.status}.`, tags ? `Etichette: ${tags}.` : "", content.slice(0, 200)].filter(Boolean).join(" ") : content || fallback; }
 function localSources(rows: { item: KnowledgeItem; fallback?: string }[], catalog?: AiSource["catalog"]) { let budget = MAX_CONTEXT_CHARS; const sources: AiSource[] = []; for (const { item, fallback } of rows) { const excerpt = sourceExcerpt(item, fallback, Boolean(catalog)).slice(0, Math.min(MAX_SOURCE_CHARS, budget)); if (!excerpt) continue; budget -= excerpt.length + item.title.length + 24; sources.push({ id: item.id, citation: `[S${sources.length + 1}]`, title: item.title, type: item.type, excerpt, href: getItemHref(item), sourceKind: "SYNAPSE", ...(catalog ? { catalog } : {}) }); if (sources.length >= (catalog ? MAX_CATALOG_SOURCES : MAX_SELECTED_SOURCES) || budget <= 0) break; } return sources; }
 function fuseRanks(lexical: string[], semantic: string[]) { const score = new Map<string, number>(); [lexical, semantic].forEach((list) => list.forEach((id, index) => score.set(id, (score.get(id) ?? 0) + 1 / (60 + index + 1)))); return [...score.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id); }
+
+async function projectCatalog(userId: string) {
+  const [projects, total] = await prisma.$transaction([
+    prisma.item.findMany({
+      where: { userId, type: "PROJECT", archivedAt: null },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      take: MAX_CATALOG_SOURCES,
+      select: { id: true, title: true, type: true, status: true, content: true, tags: { select: { tag: { select: { name: true } } } } },
+    }),
+    prisma.item.count({ where: { userId, type: "PROJECT", archivedAt: null } }),
+  ]);
+  return { sources: localSources(projects.map((item) => ({ item, fallback: `Progetto ${item.title}.` })), { kind: "PROJECT", total, truncated: total > projects.length }), total };
+}
+
+export async function projectCatalogResponse(userId: string, question: string) {
+  if (!asksForProjectCatalog(question)) return null;
+  const catalog = await projectCatalog(userId);
+  if (!catalog.total) return { content: "Non risultano progetti per l’account corrente.", sources: [] as AiSource[] };
+  const visible = catalog.sources.map((source) => `- [${source.title}](${source.href}) — ${source.excerpt} ${source.citation}`);
+  const suffix = catalog.total > catalog.sources.length ? `\n\nMostro i primi ${catalog.sources.length} di ${catalog.total} progetti.` : "";
+  return { content: `Ho trovato ${catalog.total} ${catalog.total === 1 ? "progetto" : "progetti"}:\n\n${visible.join("\n")}${suffix}`, sources: catalog.sources };
+}
 
 const projectContextQuestion = /\b(attivit[àa]|task|compit|note|nota|risorse|risorsa|collegat|riassum|manca|punto siamo|e le)\b/i;
 const allProjectsQuestion = /\b(tutti i progetti|tutte le attivit[àa]|tutti gli item|in ogni progetto)\b/i;
@@ -135,13 +162,14 @@ export async function beginAutomaticGeneration(userId: string, conversationId: s
     if (projectReference.ambiguous?.length) throw new HttpError(409, `Ho trovato pi\u00f9 progetti: ${projectReference.ambiguous.join(", ")}. Indica il nome del progetto.`);
     const currentProjectId = allProjectsQuestion.test(normalizedQuestion(content)) ? null : projectReference.projectId ?? conversation.activeProjectId;
     if (projectReference.projectId && projectReference.projectId !== conversation.activeProjectId) await prisma.aiConversation.updateMany({ where: { id: conversationId, userId }, data: { activeProjectId: projectReference.projectId } });
-    const strategy = await resolveStrategy(userId, conversation.mode as AiMode, content, options.webSearch, Boolean(currentProjectId));
+    const catalogResponse = await projectCatalogResponse(userId, content);
+    const strategy = catalogResponse ? "LOCAL" : await resolveStrategy(userId, conversation.mode as AiMode, content, options.webSearch, Boolean(currentProjectId));
     if ((strategy === "WEB" || strategy === "COMBINED") && (!webSearchConfig().enabled || !webSearchConfig().validUrl)) throw new HttpError(503, "La ricerca Web non è abilitata sul server.");
     await updateConversationPreferences(userId, conversationId, options);
     const userMessage = await prisma.aiMessage.create({ data: { conversationId, role: "USER", content: content.trim(), options: { ...options, strategy } as unknown as Prisma.InputJsonValue } });
     if (conversation.title === "Nuova conversazione") await prisma.aiConversation.updateMany({ where: { id: conversationId, userId, title: "Nuova conversazione" }, data: { title: titleFromFirstMessage(content) } });
-    const direct = timeResponse(content) ?? directResponse(content);
-    if (direct) return { conversation, userMessage, sources: [] as AiSource[], history: [] as { role: string; content: string }[], direct, options, webCount: 0, strategy };
+    const direct = catalogResponse?.content ?? timeResponse(content) ?? directResponse(content);
+    if (direct) return { conversation, userMessage, sources: catalogResponse?.sources ?? [] as AiSource[], history: [] as { role: string; content: string }[], direct, options, webCount: 0, strategy };
     const local = strategy === "LOCAL" || strategy === "COMBINED" ? retrieveKnowledge(userId, content, currentProjectId) : Promise.resolve([] as AiSource[]);
     const web = strategy === "WEB" || strategy === "COMBINED" ? searchWebAutomatically(content).catch(() => { throw new HttpError(503, "Ricerca Web non disponibile. Non posso presentare informazioni aggiornate senza fonti."); }) : Promise.resolve([] as Awaited<ReturnType<typeof searchWeb>>);
     const [localSourcesResult, webResults] = await Promise.all([local, web]); const sources = [...localSourcesResult, ...webSources(webResults, localSourcesResult.length)];

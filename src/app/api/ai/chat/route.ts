@@ -10,8 +10,8 @@ export async function POST(request: Request) {
     const options = { webSearch: input.webSearch, reasoning: input.reasoning };
     const started = await beginAutomaticGeneration(user.id, input.conversationId, input.message, options);
     if (started.direct) {
-      await completeGeneration(started.conversation.id, started.direct, [], options); releaseGeneration();
-      const payload = `data: ${JSON.stringify({ type: "status", phase: "generating" })}\n\ndata: ${JSON.stringify({ type: "token", token: started.direct })}\n\ndata: ${JSON.stringify({ type: "done", sources: [] })}\n\n`;
+      const sources = await completeGeneration(started.conversation.id, started.direct, started.sources, options); releaseGeneration();
+      const payload = `data: ${JSON.stringify({ type: "status", phase: "generating" })}\n\ndata: ${JSON.stringify({ type: "token", token: started.direct })}\n\ndata: ${JSON.stringify({ type: "done", sources })}\n\n`;
       return new Response(payload, { headers: { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-store, no-transform", Connection: "keep-alive" } });
     }
     const upstream = await openRoutedOllamaStream(started.strategy, input.message, started.history, started.sources, request.signal, options.reasoning);
