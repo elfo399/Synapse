@@ -42,7 +42,7 @@ import { RelatedTasks, relatedTasks } from "./related-tasks";
 import { getItemHref } from "@/domain/item-url";
 import type { AttachmentSummary } from "@/domain/attachments";
 import { MarkdownPreview, MarkdownEditor } from "./markdown-editor";
-import { RelationsPanel } from "./relations-panel";
+import { OrganizationPanel, RelationsPanel } from "./relations-panel";
 import { ResourceContents } from "./resource-contents";
 import { AreaWorkspace, ProjectWorkspace } from "./role-workspaces";
 import "./document.css";
@@ -435,7 +435,13 @@ function ItemEditor({
           </a>
           <a href="#collegamenti">
             Collegamenti{" "}
-            <span>{item.outgoing.length + item.incoming.length}</span>
+            <span>
+              {
+                item.outgoing.filter(
+                  (relation) => relation.relationType !== "PARENT",
+                ).length
+              }
+            </span>
           </a>
           {showTasks && (
             <a href="#attivita">
@@ -609,17 +615,7 @@ function ItemEditor({
                 Modificato il {dateLabel(item.updatedAt)}
               </p>
             </details>
-            {contexts.length > 0 && (
-              <section className="detail-card detail-context">
-                <h2>Contesto</h2>
-                {contexts.map((relation) => (
-                  <Link href={getItemHref(relation.target)} key={relation.id}>
-                    <TypeBadge type={relation.target.type} />
-                    <span>{relation.target.title}</span>
-                  </Link>
-                ))}
-              </section>
-            )}
+            <OrganizationPanel item={item} onReload={reload} />
             <footer className="document-management detail-card">
               <h2>Azioni rapide</h2>
               <button

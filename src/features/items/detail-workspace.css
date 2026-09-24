@@ -184,11 +184,29 @@
 }
 .detail-context > a {
   display: flex;
-  align-items: flex-start;
-  flex-direction: column;
-  gap: 6px;
+  align-items: center;
+  flex-direction: row;
+  gap: 8px;
   font-size: 13px;
   overflow-wrap: anywhere;
+}
+.detail-context-label {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.detail-secondary-contexts {
+  display: grid;
+  gap: 9px;
+}
+.detail-context-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 2px;
+}
+.detail-context-actions .text-link {
+  font-size: 11px;
 }
 .document-management.detail-card {
   display: flex;

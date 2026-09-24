@@ -8,7 +8,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 8px;
 }
 .document-connections-heading h2 {
   display: flex;
@@ -23,49 +23,14 @@
 .document-connections-heading .text-link {
   font-size: 12px;
 }
-.document-connections h3 {
-  display: flex;
-  align-items: center;
-  gap: 7px;
+.document-connections-description {
+  margin: 0 0 14px;
+  color: var(--text-muted);
   font-size: 12px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  margin-bottom: 12px;
 }
-.document-connections h3 > span {
-  color: var(--text-muted);
-  font-size: 11px;
-  margin-left: 4px;
-}
-.document-contexts {
-  margin-bottom: 26px;
-}
-.document-secondary-contexts {
-  margin-top: 16px;
-}
-.relation-primary {
-  flex: 0 0 auto;
-  font-size: 10px;
-  white-space: nowrap;
-}
-.document-organized {
-  margin-bottom: 28px;
-}
-.document-organized-groups {
+.document-relation-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px 30px;
-}
-.document-organized-groups h4 {
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--text-muted);
-  margin: 0 0 7px;
-}
-.document-relation-columns {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 30px;
+  gap: 2px;
 }
 .document-relation-row {
   display: flex;
@@ -198,11 +163,6 @@
   flex-shrink: 0;
 }
 @media (max-width: 700px) {
-  .document-relation-columns,
-  .document-organized-groups {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 22px;
-  }
   .document-relation-kind {
     font-size: 9px;
   }
