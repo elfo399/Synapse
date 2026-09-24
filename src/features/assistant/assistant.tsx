@@ -1,5 +1,8 @@
 "use client";
 import { FormEvent, useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeSanitize from "rehype-sanitize";
 import {
   ArrowUp,
   Brain,
@@ -42,6 +45,16 @@ type State = {
   reasoningAvailable: boolean;
   web: { enabled: boolean; reachable: boolean };
 };
+type Generation = {
+  conversationId: string;
+  messageId: string;
+  phase:
+    | "preparing"
+    | "searching_knowledge"
+    | "searching_web"
+    | "reasoning"
+    | "generating";
+};
 const ideas = [
   {
     t: "Cerca nelle mie note",
@@ -77,11 +90,13 @@ export function Assistant() {
     [web, setWeb] = useState(true),
     [think, setThink] = useState(false),
     [busy, setBusy] = useState(false),
+    [generation, setGeneration] = useState<Generation | null>(null),
     [error, setError] = useState(""),
     [dialog, setDialog] = useState<"rename" | "delete" | null>(null),
     [titleDraft, setTitleDraft] = useState("");
   const input = useRef<HTMLTextAreaElement | null>(null),
-    titleInput = useRef<HTMLInputElement | null>(null);
+    titleInput = useRef<HTMLInputElement | null>(null),
+    messageEnd = useRef<HTMLDivElement | null>(null);
   const available = status?.state === "ready",
     webOK = !!status?.web.enabled && status.web.reachable;
   const load = async (id: string) => {
@@ -107,6 +122,9 @@ export function Assistant() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
+  useEffect(() => {
+    messageEnd.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+  }, [chat?.messages, generation]);
   const create = async () => {
     const r = await api<{ conversation: Chat }>("/api/ai/conversations", {
       method: "POST",
@@ -180,12 +198,33 @@ export function Assistant() {
   async function send(e?: FormEvent) {
     e?.preventDefault();
     if (!text.trim() || busy || !available) return;
+    let pendingMessageId: string | null = null;
     setBusy(true);
     setError("");
     try {
       const active = chat ?? (await create());
       const q = text.trim();
+      const userId = `u${Date.now()}`;
+      const assistantId = `a${Date.now()}`;
+      pendingMessageId = assistantId;
       setText("");
+      setGeneration({
+        conversationId: active.id,
+        messageId: assistantId,
+        phase: "preparing",
+      });
+      setChat((current) =>
+        current && current.id === active.id
+          ? {
+              ...current,
+              messages: [
+                ...(current.messages ?? []),
+                { id: userId, role: "USER", content: q },
+                { id: assistantId, role: "ASSISTANT", content: "" },
+              ],
+            }
+          : current,
+      );
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -210,8 +249,29 @@ export function Assistant() {
         b = es.pop() ?? "";
         for (const raw of es) {
           const d = JSON.parse(raw.replace(/^data:\s*/, ""));
-          if (d.type === "token") out += d.token;
+          if (d.type === "status")
+            setGeneration((current) =>
+              current?.messageId === assistantId
+                ? { ...current, phase: d.phase }
+                : current,
+            );
+          if (d.type === "token") {
+            out += d.token;
+            setChat((current) =>
+              current && current.id === active.id
+                ? {
+                    ...current,
+                    messages: (current.messages ?? []).map((message) =>
+                      message.id === assistantId
+                        ? { ...message, content: out }
+                        : message,
+                    ),
+                  }
+                : current,
+            );
+          }
           if (d.type === "done") sources = d.sources ?? [];
+          if (d.type === "error") throw new Error(d.error);
         }
       }
       setChat((v) =>
@@ -219,14 +279,11 @@ export function Assistant() {
           ? {
               ...v,
               messages: [
-                ...(v.messages ?? []),
-                { id: `u${Date.now()}`, role: "USER", content: q },
-                {
-                  id: `a${Date.now()}`,
-                  role: "ASSISTANT",
-                  content: out,
-                  sources,
-                },
+                ...(v.messages ?? []).map((message) =>
+                  message.id === assistantId
+                    ? { ...message, content: out, sources }
+                    : message,
+                ),
               ],
             }
           : v,
@@ -234,8 +291,19 @@ export function Assistant() {
       await refresh();
     } catch (e) {
       setText(text);
+      setChat((current) =>
+        current
+          ? {
+              ...current,
+              messages: (current.messages ?? []).filter(
+                (message) => message.id !== pendingMessageId,
+              ),
+            }
+          : current,
+      );
       setError(errorMessage(e));
     } finally {
+      setGeneration(null);
       setBusy(false);
     }
   }
@@ -248,6 +316,12 @@ export function Assistant() {
         onChange={(e) => setText(e.target.value)}
         placeholder="Chiedi a Synapse..."
         disabled={busy}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            void send();
+          }
+        }}
       />
       <div className="assistant-composer-actions">
         <div className="assistant-toggles">
@@ -417,13 +491,44 @@ export function Assistant() {
               <div className="assistant-messages">
                 {chat.messages?.map((m) => (
                   <article
-                    className={`assistant-message ${m.role.toLowerCase()}`}
+                    className={`assistant-message ${m.role.toLowerCase()}${generation?.messageId === m.id && !m.content ? " assistant-pending" : ""}`}
                     key={m.id}
                   >
                     <span>{m.role === "USER" ? "Tu" : "Synapse"}</span>
-                    <p>{m.content}</p>
+                    {generation?.messageId === m.id && !m.content ? (
+                      <p>
+                        {generation.phase === "searching_knowledge"
+                          ? "Cerco nelle tue conoscenze"
+                          : generation.phase === "searching_web"
+                            ? "Cerco sul Web"
+                            : generation.phase === "reasoning"
+                              ? "Sto ragionando"
+                              : generation.phase === "generating"
+                                ? "Sto preparando la risposta"
+                                : "Preparo la risposta"}
+                        <i />
+                      </p>
+                    ) : (
+                      <div className="assistant-markdown">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          rehypePlugins={[rehypeSanitize]}
+                          skipHtml
+                          components={{
+                            a: ({ href, children }) => (
+                              <a href={href} target="_blank" rel="noreferrer">
+                                {children}
+                              </a>
+                            ),
+                          }}
+                        >
+                          {m.content}
+                        </ReactMarkdown>
+                      </div>
+                    )}
                   </article>
                 ))}
+                <div ref={messageEnd} />
               </div>
               {error && (
                 <p className="form-error assistant-chat-error">{error}</p>
