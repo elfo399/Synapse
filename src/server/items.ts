@@ -193,7 +193,7 @@ export async function createItemInTransaction(
     },
   });
   await setTags(tx, userId, item.id, input.tags);
-  await setParents(tx, userId, item.id, input.parentIds);
+  await setParents(tx, userId, item.id, input.parentIds, input.primaryParentId);
   await syncWikiLinks(tx, userId, item.id, input.content);
   await resolveNewTitle(tx, userId, item.id, item.titleNormalized);
   await queueItemEmbedding(tx, userId, item.id, item.version);
@@ -269,7 +269,20 @@ export async function updateItem(
     });
     if (input.tags !== undefined) await setTags(tx, userId, id, input.tags);
     if (input.parentIds !== undefined)
-      await setParents(tx, userId, id, input.parentIds);
+      await setParents(tx, userId, id, input.parentIds, input.primaryParentId);
+    else if (input.primaryParentId !== undefined) {
+      const parents = await tx.itemRelation.findMany({
+        where: { userId, sourceItemId: id, relationType: "PARENT" },
+        select: { targetItemId: true },
+      });
+      await setParents(
+        tx,
+        userId,
+        id,
+        parents.map((parent) => parent.targetItemId),
+        input.primaryParentId,
+      );
+    }
     await syncWikiLinks(tx, userId, id, input.content ?? previous.content);
     if (title !== previous.title)
       await propagateTitleRename(tx, userId, previous.titleNormalized, title);

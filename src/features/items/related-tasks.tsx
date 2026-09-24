@@ -31,7 +31,7 @@ export function RelatedTasks({
   onReload: () => void;
 }) {
   const tasks = relatedTasks(item);
-  const canCreate = ["PROJECT", "AREA", "RESOURCE"].includes(item.type);
+  const canCreate = ["PROJECT", "AREA"].includes(item.type);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");

@@ -43,6 +43,8 @@ import { getItemHref } from "@/domain/item-url";
 import type { AttachmentSummary } from "@/domain/attachments";
 import { MarkdownPreview, MarkdownEditor } from "./markdown-editor";
 import { RelationsPanel } from "./relations-panel";
+import { ResourceContents } from "./resource-contents";
+import { AreaWorkspace, ProjectWorkspace } from "./role-workspaces";
 import "./document.css";
 import "./detail-workspace.css";
 
@@ -87,7 +89,9 @@ function ItemEditor({
   const contexts = item.outgoing.filter(
     (relation) => relation.relationType === "PARENT",
   );
-  const parent = contexts[0]?.target;
+  const parent = (
+    contexts.find((relation) => relation.isPrimary) ?? contexts[0]
+  )?.target;
   const tasks = relatedTasks(item);
   const showTasks =
     tasks.length > 0 || ["PROJECT", "AREA", "RESOURCE"].includes(item.type);
@@ -426,7 +430,9 @@ function ItemEditor({
         )}
         <nav className="detail-section-nav" aria-label="Sezioni dell’elemento">
           <a href="#panoramica">Panoramica</a>
-          <a href="#contenuto">Contenuto</a>
+          <a href="#contenuto">
+            {item.type === "RESOURCE" ? "Contenuti" : "Contenuto"}
+          </a>
           <a href="#collegamenti">
             Collegamenti{" "}
             <span>{item.outgoing.length + item.incoming.length}</span>
@@ -436,74 +442,93 @@ function ItemEditor({
               Attività <span>{tasks.length}</span>
             </a>
           )}
-          <a href="#allegati">
-            Allegati <span>{item.attachments?.length || 0}</span>
-          </a>
+          {item.type !== "RESOURCE" && (
+            <a href="#allegati">
+              Allegati <span>{item.attachments?.length || 0}</span>
+            </a>
+          )}
           <a href="#dettagli" onClick={() => setPropertiesOpen(true)}>
             Dettagli
           </a>
         </nav>
         <div className="detail-layout">
           <div className="detail-main">
-            <section
-              className="detail-card detail-content-card"
-              id="contenuto"
-              aria-labelledby="content-heading"
-            >
-              <div className="detail-card-heading">
-                <h2 id="content-heading">
-                  <FileText size={17} />
-                  Contenuto
-                </h2>
-                <button
-                  className="text-link"
-                  onClick={() => setEditing((value) => !value)}
-                >
-                  <Pencil size={14} />
-                  {editing ? "Leggi" : "Modifica contenuto"}
-                </button>
-              </div>
-              {editing ? (
-                <MarkdownEditor
-                  content={content}
-                  onChange={setContent}
-                  relations={item.outgoing}
-                  onCreate={setCreateTitle}
-                  onUpload={uploadIntoContent}
-                />
-              ) : (
-                <MarkdownPreview
-                  content={content}
-                  relations={item.outgoing}
-                  onCreate={setCreateTitle}
-                />
-              )}
-              {item.unresolvedWikilinks.length > 0 && (
-                <section className="document-unresolved">
-                  <h2>Note da creare</h2>
-                  <div>
-                    {item.unresolvedWikilinks.map((value) => (
-                      <button
-                        key={value}
-                        className="text-link"
-                        onClick={() => setCreateTitle(value)}
-                      >
-                        <Plus size={13} />
-                        {value}
-                      </button>
-                    ))}
-                  </div>
-                </section>
-              )}
-            </section>
+            <AreaWorkspace item={item} onReload={reload} />
+            <ProjectWorkspace item={item} onReload={reload} />
+            {item.type === "RESOURCE" ? (
+              <ResourceContents
+                item={item}
+                content={content}
+                editing={editing}
+                onEditingChange={setEditing}
+                onContentChange={setContent}
+                onReload={reload}
+                onCreate={setCreateTitle}
+                onUpload={uploadIntoContent}
+              />
+            ) : (
+              <section
+                className="detail-card detail-content-card"
+                id="contenuto"
+                aria-labelledby="content-heading"
+              >
+                <div className="detail-card-heading">
+                  <h2 id="content-heading">
+                    <FileText size={17} />
+                    Contenuto
+                  </h2>
+                  <button
+                    className="text-link"
+                    onClick={() => setEditing((value) => !value)}
+                  >
+                    <Pencil size={14} />
+                    {editing ? "Leggi" : "Modifica contenuto"}
+                  </button>
+                </div>
+                {editing ? (
+                  <MarkdownEditor
+                    content={content}
+                    onChange={setContent}
+                    relations={item.outgoing}
+                    onCreate={setCreateTitle}
+                    onUpload={uploadIntoContent}
+                  />
+                ) : (
+                  <MarkdownPreview
+                    content={content}
+                    relations={item.outgoing}
+                    onCreate={setCreateTitle}
+                  />
+                )}
+                {item.unresolvedWikilinks.length > 0 && (
+                  <section className="document-unresolved">
+                    <h2>Note da creare</h2>
+                    <div>
+                      {item.unresolvedWikilinks.map((value) => (
+                        <button
+                          key={value}
+                          className="text-link"
+                          onClick={() => setCreateTitle(value)}
+                        >
+                          <Plus size={13} />
+                          {value}
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </section>
+            )}
             <RelationsPanel item={item} onReload={reload} />
             <RelatedTasks item={item} onReload={reload} />
-            <AttachmentPanel
-              itemId={item.id}
-              attachments={item.attachments || []}
-              onReload={reload}
-              onInsert={insertAttachment}
-            />
+            {item.type !== "RESOURCE" && (
+              <AttachmentPanel
+                itemId={item.id}
+                attachments={item.attachments || []}
+                onReload={reload}
+                onInsert={insertAttachment}
+              />
+            )}
           </div>
           <aside className="detail-sidebar" aria-label="Informazioni e azioni">
             <details

@@ -55,6 +55,11 @@ export function RelationsPanel({
   const contexts = item.outgoing.filter(
     (relation) => relation.relationType === "PARENT",
   );
+  const primaryContext =
+    contexts.find((relation) => relation.isPrimary) ?? contexts[0];
+  const secondaryContexts = contexts.filter(
+    (relation) => relation.id !== primaryContext?.id,
+  );
   const outgoing = item.outgoing.filter(
     (relation) => relation.relationType !== "PARENT",
   );
@@ -74,7 +79,16 @@ export function RelationsPanel({
                 (value) =>
                   value.id !== item.id &&
                   (relationType !== "PARENT" ||
-                    ["PROJECT", "AREA", "RESOURCE"].includes(value.type)),
+                    (
+                      {
+                        AREA: [],
+                        PROJECT: ["AREA"],
+                        RESOURCE: ["PROJECT", "AREA"],
+                        NOTE: ["PROJECT", "AREA", "RESOURCE"],
+                        TASK: ["PROJECT", "AREA"],
+                        BOOKMARK: ["PROJECT", "AREA", "RESOURCE"],
+                      }[item.type] as string[]
+                    ).includes(value.type)),
               ),
             );
         })
@@ -89,7 +103,7 @@ export function RelationsPanel({
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [open, query, item.id, relationType]);
+  }, [open, query, item.id, item.type, relationType]);
 
   function openRelation(type: RelationType) {
     setRelationType(type);
@@ -134,6 +148,22 @@ export function RelationsPanel({
       notify(errorMessage(error));
     }
   }
+  async function makePrimary(id: string) {
+    setBusy(true);
+    try {
+      await api("/api/relations", {
+        method: "PATCH",
+        body: JSON.stringify({ id, primary: true }),
+      });
+      changed();
+      onReload();
+      notify("Contenitore principale aggiornato.");
+    } catch (error) {
+      notify(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }
   function relationRow(relation: Relation, direction: "incoming" | "outgoing") {
     const related =
       direction === "incoming" ? relation.source : relation.target;
@@ -158,6 +188,17 @@ export function RelationsPanel({
             <Unlink size={13} />
           </button>
         )}
+        {direction === "outgoing" &&
+          relation.relationType === "PARENT" &&
+          !relation.isPrimary && (
+            <button
+              className="text-link relation-primary"
+              disabled={busy}
+              onClick={() => makePrimary(relation.id)}
+            >
+              Rendi principale
+            </button>
+          )}
         {
           <small className="document-relation-kind">
             {relation.wikilink
@@ -190,10 +231,18 @@ export function RelationsPanel({
             Collega
           </button>
         </div>
-        {contexts.length > 0 && (
+        {primaryContext && (
           <div className="document-contexts">
-            <h3>Organizzato in</h3>
-            {contexts.map((relation) => relationRow(relation, "outgoing"))}
+            <h3>Contenitore principale</h3>
+            {relationRow(primaryContext, "outgoing")}
+            {secondaryContexts.length > 0 && (
+              <>
+                <h3 className="document-secondary-contexts">Anche in</h3>
+                {secondaryContexts.map((relation) =>
+                  relationRow(relation, "outgoing"),
+                )}
+              </>
+            )}
           </div>
         )}
         {isCollection && (
@@ -266,10 +315,15 @@ export function RelationsPanel({
           </section>
         </div>
         <div className="document-connection-actions">
-          <button className="text-link" onClick={() => openRelation("PARENT")}>
-            <Plus size={13} />
-            Assegna a progetto, area o risorsa
-          </button>
+          {item.type !== "AREA" && (
+            <button
+              className="text-link"
+              onClick={() => openRelation("PARENT")}
+            >
+              <Plus size={13} />
+              Organizza in un contenitore
+            </button>
+          )}
           <Link className="text-link" href={`/graph?focus=${item.id}`}>
             <Network size={14} />
             Esplora i collegamenti vicini

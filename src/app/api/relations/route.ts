@@ -4,6 +4,7 @@ import {
   createRelation,
   deleteRelation,
   listRelations,
+  setPrimaryParent,
 } from "@/server/relations";
 import { json, readJson, route } from "@/server/http";
 import { idSchema, relationSchema } from "@/domain/validation";
@@ -38,4 +39,14 @@ export const DELETE = (request: Request) =>
       .parse(await readJson(request));
     await deleteRelation(user.id, input.id);
     return json({ success: true });
+  });
+
+export const PATCH = (request: Request) =>
+  route(async () => {
+    const user = await requireUser(request);
+    const input = z
+      .object({ id: idSchema, primary: z.literal(true) })
+      .strict()
+      .parse(await readJson(request));
+    return json({ relation: await setPrimaryParent(user.id, input.id) });
   });

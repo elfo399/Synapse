@@ -339,6 +339,9 @@ model ItemRelation {
   sourceItemId String
   targetItemId String
   relationType RelationType @default(RELATED)
+  // Parent relations may provide secondary contexts. Exactly one parent is
+  // selected as the navigational container for an item.
+  isPrimary Boolean @default(false)
   manual Boolean @default(true)
   wikilink Boolean @default(false)
   createdAt DateTime @default(now())

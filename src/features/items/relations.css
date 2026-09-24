@@ -40,6 +40,14 @@
 .document-contexts {
   margin-bottom: 26px;
 }
+.document-secondary-contexts {
+  margin-top: 16px;
+}
+.relation-primary {
+  flex: 0 0 auto;
+  font-size: 10px;
+  white-space: nowrap;
+}
 .document-organized {
   margin-bottom: 28px;
 }

@@ -15,6 +15,8 @@ export const relationInclude = {
       archivedAt: true,
       status: true,
       dueAt: true,
+      content: true,
+      url: true,
     },
   },
   target: {
@@ -25,6 +27,8 @@ export const relationInclude = {
       archivedAt: true,
       status: true,
       dueAt: true,
+      content: true,
+      url: true,
     },
   },
 } satisfies Prisma.ItemRelationInclude;
@@ -69,6 +73,7 @@ export function serializeRelation(relation: StoredRelation): ItemRelation {
     sourceItemId: relation.sourceItemId,
     targetItemId: relation.targetItemId,
     relationType: relation.relationType,
+    isPrimary: relation.isPrimary,
     manual: relation.manual,
     wikilink: relation.wikilink,
     source: {
