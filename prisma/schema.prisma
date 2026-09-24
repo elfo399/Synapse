@@ -109,6 +109,7 @@ model AiConversation {
   id String @id @default(cuid())
   userId String
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activeProjectId String?
   title String @db.VarChar(160)
   mode AiConversationMode @default(AUTO)
   webSearchEnabled Boolean @default(false)
@@ -117,6 +118,7 @@ model AiConversation {
   updatedAt DateTime @updatedAt
   messages AiMessage[]
   @@index([userId, updatedAt(sort: Desc)])
+  @@index([userId, activeProjectId])
 }
 
 model AiMessage {

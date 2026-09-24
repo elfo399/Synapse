@@ -26,6 +26,7 @@ type Source = {
   excerpt: string;
   href: string;
   sourceKind?: "SYNAPSE" | "WEB";
+  usage?: "CITED" | "CONSULTED";
 };
 type Msg = {
   id: string;
@@ -55,6 +56,35 @@ type Generation = {
     | "reasoning"
     | "generating";
 };
+
+function contentWithCitationLinks(content: string, sources: Source[] | null | undefined) {
+  const links = new Map((Array.isArray(sources) ? sources : []).map((source) => [source.citation, source.href]));
+  return content.replace(/\[S\d+\]/g, (citation) => {
+    const href = links.get(citation);
+    return href ? `[${citation}](${href})` : citation;
+  });
+}
+
+function AssistantSources({ sources }: { sources: Source[] }) {
+  const cited = sources.filter((source) => source.usage !== "CONSULTED");
+  const consulted = sources.filter((source) => source.usage === "CONSULTED");
+  const renderGroup = (label: string, group: Source[]) => group.length ? (
+    <section className="assistant-source-group">
+      <strong>{label}</strong>
+      {group.map((source) => (
+        <a href={source.href} key={source.id} target="_blank" rel="noreferrer">
+          {source.sourceKind === "WEB" ? <Globe2 size={13} /> : <FileText size={13} />}
+          <span>
+            <b>{source.title}</b>
+            <small>{source.sourceKind === "WEB" ? "Web" : "Synapse"} · {source.excerpt}</small>
+          </span>
+        </a>
+      ))}
+    </section>
+  ) : null;
+  if (!sources.length) return null;
+  return <aside className="assistant-sources">{renderGroup("Fonti utilizzate", cited)}{renderGroup("Fonti consultate", consulted)}</aside>;
+}
 const ideas = [
   {
     t: "Cerca nelle mie note",
@@ -522,10 +552,11 @@ export function Assistant() {
                             ),
                           }}
                         >
-                          {m.content}
+                          {contentWithCitationLinks(m.content, m.sources)}
                         </ReactMarkdown>
                       </div>
                     )}
+                    {m.role === "ASSISTANT" && m.content && <AssistantSources sources={m.sources ?? []} />}
                   </article>
                 ))}
                 <div ref={messageEnd} />

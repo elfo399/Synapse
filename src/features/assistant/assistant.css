@@ -182,3 +182,16 @@
     min-height: 60px;
   }
 }
+
+/* Fonti della risposta: usate e consultate restano distinguibili anche dopo un refresh. */
+.assistant-sources { display: grid; gap: 12px; margin-top: 9px; border-left: 2px solid var(--accent); padding-left: 11px; }
+.assistant-source-group { display: grid; gap: 6px; }
+.assistant-source-group > strong { color: var(--text-muted); font-size: 10px; font-weight: 650; letter-spacing: .07em; text-transform: uppercase; }
+.assistant-source-group a { display: flex; align-items: flex-start; gap: 7px; color: var(--text-secondary); font-size: 11px; line-height: 1.4; }
+.assistant-source-group a > svg { flex: 0 0 auto; margin-top: 2px; color: var(--text-muted); }
+.assistant-source-group a:hover { color: var(--accent); }
+.assistant-source-group a:hover > svg { color: var(--accent); }
+.assistant-source-group a span { min-width: 0; }
+.assistant-source-group b, .assistant-source-group small { display: block; }
+.assistant-source-group b { font-weight: 600; }
+.assistant-source-group small { max-width: 500px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
