@@ -73,6 +73,17 @@ Le tue conoscenze restano nel tuo spazio personale: Synapse è pensato per chi v
 | Organizzare la quotidianità | Pianificare impegni, letture, viaggi e piccoli obiettivi. |
 | Fare spazio nella testa | Salvare ora e rielaborare quando hai il momento giusto. |
 
+## Le tue raccolte, anche fuori da Synapse
+
+Una Risorsa può raccogliere nello stesso posto testo, immagini, memo audio,
+documenti e link. Puoi cambiare l'ordine dei contenuti quando una raccolta si
+evolve, senza dover spargere materiali tra note diverse.
+
+Quando vuoi condividere o spostare il tuo lavoro, apri un'Area, un Progetto o
+una Risorsa e scegli **Esporta**. Synapse prepara un archivio ZIP con i
+contenuti, gli allegati, le etichette e i collegamenti della raccolta. Da
+un'altra Area o Progetto, **Importa** ricrea tutto nel posto corretto.
+
 <details>
 <summary><strong>Guarda una nota in Synapse</strong></summary>
 

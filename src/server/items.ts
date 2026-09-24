@@ -59,6 +59,10 @@ export async function getItem(
       outgoing: { include: relationInclude, orderBy: { createdAt: "desc" } },
       incoming: { include: relationInclude, orderBy: { createdAt: "desc" } },
       wikiReferences: true,
+      resourceBlocks: {
+        orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+        include: { attachment: true },
+      },
     },
   });
   if (!item) throw new HttpError(404, "Elemento non trovato.");
@@ -81,6 +85,24 @@ export async function getItem(
     unresolvedWikilinks: item.wikiReferences
       .filter((link) => !existing.has(link.titleNormalized))
       .map((link) => link.title),
+    resourceBlocks: item.resourceBlocks.map((block) => ({
+      id: block.id,
+      type: block.type,
+      position: block.position,
+      text: block.text,
+      url: block.url,
+      attachment: block.attachment
+        ? {
+            id: block.attachment.id,
+            itemId: block.attachment.itemId,
+            originalName: block.attachment.originalName,
+            mimeType: block.attachment.mimeType,
+            size: block.attachment.size,
+            duration: block.attachment.duration,
+            createdAt: block.attachment.createdAt.toISOString(),
+          }
+        : null,
+    })),
   };
 }
 

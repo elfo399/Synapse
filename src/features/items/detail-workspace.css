@@ -33,6 +33,50 @@
 .document-actions {
   gap: 12px;
 }
+.transfer-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding-right: 12px;
+  border-right: 1px solid var(--border);
+}
+.transfer-actions .text-link {
+  font-size: 11px;
+}
+.transfer-dialog-content {
+  display: grid;
+  gap: 18px;
+}
+.transfer-dropzone {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 28px 18px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  text-align: center;
+}
+.transfer-dropzone > svg {
+  color: var(--accent);
+}
+.transfer-dropzone strong {
+  color: var(--text);
+  font-size: 13px;
+}
+.transfer-dropzone span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+@media (max-width: 700px) {
+  .transfer-actions {
+    order: 3;
+    width: 100%;
+    padding: 0;
+    border: 0;
+  }
+}
 .document-workspace {
   min-width: 0;
 }
@@ -811,4 +855,174 @@
   .role-workspace-arrow {
     opacity: 1;
   }
+}
+.resource-block-list {
+  display: grid;
+  gap: 14px;
+}
+.resource-block {
+  position: relative;
+  min-width: 0;
+  padding: 16px 58px 16px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+}
+.resource-block-tools {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 3px;
+  opacity: 0.7;
+}
+.resource-block:hover .resource-block-tools,
+.resource-block:focus-within .resource-block-tools {
+  opacity: 1;
+}
+.resource-block-tools .danger {
+  color: var(--danger);
+}
+.resource-block-image {
+  display: grid;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.resource-block-image img {
+  display: block;
+  max-width: min(100%, 720px);
+  max-height: 480px;
+  object-fit: contain;
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--surface);
+}
+.resource-block-audio,
+.resource-block-file,
+.resource-block-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  color: var(--text-secondary);
+}
+.resource-block-audio > svg,
+.resource-block-file > svg,
+.resource-block-link > svg {
+  color: var(--accent);
+  flex: 0 0 auto;
+}
+.resource-block-audio > div,
+.resource-block-file span,
+.resource-block-link span {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+.resource-block-audio strong,
+.resource-block-file strong,
+.resource-block-link strong {
+  color: var(--text);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.resource-block-file small,
+.resource-block-link small {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.resource-block-audio audio {
+  width: min(100%, 360px);
+  height: 32px;
+}
+.resource-block-text {
+  min-height: 44px;
+}
+.resource-block-text > .text-link {
+  float: right;
+  margin: -3px 0 8px 14px;
+  font-size: 11px;
+}
+.resource-block-text .markdown-preview {
+  min-height: 0;
+  padding: 0;
+}
+.resource-block-edit {
+  display: grid;
+  gap: 10px;
+}
+.resource-block-edit textarea,
+.resource-create-block textarea,
+.resource-create-block input {
+  width: 100%;
+  resize: vertical;
+}
+.resource-block-edit > div,
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.resource-create-block {
+  display: grid;
+  gap: 18px;
+}
+.resource-create-block label {
+  display: grid;
+  gap: 7px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.export-format-list {
+  display: grid;
+  gap: 12px;
+}
+.export-format-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  padding: 17px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+}
+.export-format-option:hover {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--surface-hover);
+}
+.export-format-option > span:last-child {
+  display: grid;
+  gap: 4px;
+}
+.export-format-option strong {
+  color: var(--text);
+  font-size: 13px;
+}
+.export-format-option small {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.export-format-option em {
+  margin-top: 3px;
+  color: var(--accent);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.export-format-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.export-format-icon.readable {
+  color: #2f7c6d;
+  background: #2f7c6d20;
 }

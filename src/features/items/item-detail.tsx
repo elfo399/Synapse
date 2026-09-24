@@ -45,6 +45,7 @@ import { MarkdownPreview, MarkdownEditor } from "./markdown-editor";
 import { OrganizationPanel, RelationsPanel } from "./relations-panel";
 import { ResourceContents } from "./resource-contents";
 import { AreaWorkspace, ProjectWorkspace } from "./role-workspaces";
+import { TransferActions } from "./transfer-actions";
 import "./document.css";
 import "./detail-workspace.css";
 
@@ -320,6 +321,9 @@ function ItemEditor({
           <span aria-current="page">{item.title}</span>
         </nav>
         <div className="document-actions">
+          {(["AREA", "PROJECT", "RESOURCE"] as string[]).includes(item.type) && (
+            <TransferActions item={item} />
+          )}
           <span
             className={`save-indicator ${dirty ? "unsaved" : ""}`}
             role="status"
@@ -462,16 +466,7 @@ function ItemEditor({
             <AreaWorkspace item={item} onReload={reload} />
             <ProjectWorkspace item={item} onReload={reload} />
             {item.type === "RESOURCE" ? (
-              <ResourceContents
-                item={item}
-                content={content}
-                editing={editing}
-                onEditingChange={setEditing}
-                onContentChange={setContent}
-                onReload={reload}
-                onCreate={setCreateTitle}
-                onUpload={uploadIntoContent}
-              />
+              <ResourceContents item={item} onReload={reload} />
             ) : (
               <section
                 className="detail-card detail-content-card"

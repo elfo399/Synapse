@@ -110,10 +110,20 @@ export interface ItemRelation {
   source: RelationItem;
   target: RelationItem;
 }
+export type ResourceBlockType = "TEXT" | "IMAGE" | "AUDIO" | "FILE" | "LINK";
+export interface ResourceBlockSummary {
+  id: string;
+  type: ResourceBlockType;
+  position: number;
+  text: string | null;
+  url: string | null;
+  attachment: import("./attachments").AttachmentSummary | null;
+}
 export interface ItemDetail extends ItemSummary {
   outgoing: ItemRelation[];
   incoming: ItemRelation[];
   unresolvedWikilinks: string[];
+  resourceBlocks: ResourceBlockSummary[];
 }
 export interface ItemInput {
   title: string;
