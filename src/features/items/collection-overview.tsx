@@ -11,12 +11,10 @@ const actions: Record<"AREA" | "PROJECT", { type: ItemType; label: string }[]> =
     AREA: [
       { type: "PROJECT", label: "Nuovo progetto" },
       { type: "RESOURCE", label: "Nuova risorsa" },
-      { type: "NOTE", label: "Nuova nota" },
     ],
     PROJECT: [
       { type: "TASK", label: "Nuova attività" },
       { type: "RESOURCE", label: "Nuova risorsa" },
-      { type: "NOTE", label: "Nuova nota" },
     ],
   };
 

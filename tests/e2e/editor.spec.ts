@@ -15,7 +15,7 @@ test("short document titles stay compact after changing viewport and editor mode
   const title = `Nota ${randomUUID().slice(0, 8)}`;
   const response = await page.request.post("/api/items", {
     headers: { origin },
-    data: { type: "NOTE", title, content: "Una nota di prova.", inbox: false },
+    data: { type: "RESOURCE", title, content: "Una nota di prova.", inbox: false },
   });
   expect(response.status()).toBe(201);
   const { item } = (await response.json()) as { item: FixtureItem };
@@ -75,7 +75,7 @@ for (const scenario of [
     async function create(title: string, content: string) {
       const response = await page.request.post("/api/items", {
         headers: { origin },
-        data: { type: "NOTE", title, content, inbox: false },
+        data: { type: "RESOURCE", title, content, inbox: false },
       });
       expect(response.status()).toBe(201);
       const { item } = (await response.json()) as { item: FixtureItem };

@@ -303,8 +303,8 @@ export function Dashboard() {
               <div>
                 <Network size={18} />
                 <span>
-                  {data.counts.notes}{" "}
-                  {data.counts.notes === 1 ? "nota" : "note"} nel tuo spazio
+                  {data.counts.resources}{" "}
+                  {data.counts.resources === 1 ? "risorsa" : "risorse"} nel tuo spazio
                 </span>
               </div>
               <Link href="/graph" className="text-link">

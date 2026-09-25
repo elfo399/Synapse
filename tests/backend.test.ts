@@ -57,7 +57,7 @@ describe("boundary validation", () => {
   it("defaults a quick capture to an inbox note without metadata", () => {
     expect(itemSchema.parse({ title: "An idea" })).toMatchObject({
       title: "An idea",
-      type: "NOTE",
+      type: "RESOURCE",
       inbox: true,
       content: "",
       tags: [],
@@ -88,7 +88,7 @@ describe("boundary validation", () => {
   });
   it("keeps task and project statuses appropriate", () => {
     expect(defaultStatus("TASK")).toBe("TODO");
-    expect(statusAllowed("NOTE", "DONE")).toBe(false);
+    expect(statusAllowed("RESOURCE", "DONE")).toBe(false);
     expect(statusAllowed("TASK", "DONE")).toBe(true);
     expect(statusAllowed("PROJECT", "ON_HOLD")).toBe(true);
   });

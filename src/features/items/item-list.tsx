@@ -120,7 +120,7 @@ export function ItemList({
           kind !== "archive" && (
             <button
               className="button button-secondary"
-              onClick={() => capture(itemType || "NOTE", kind === "inbox")}
+              onClick={() => capture(itemType || "RESOURCE", kind === "inbox")}
             >
               <Plus size={16} />
               {kind === "inbox"
@@ -238,7 +238,7 @@ export function ItemList({
               kind !== "archive" && (
                 <button
                   className="text-link"
-                  onClick={() => capture(itemType || "NOTE", kind === "inbox")}
+                  onClick={() => capture(itemType || "RESOURCE", kind === "inbox")}
                 >
                   <Plus size={15} />
                   {itemType

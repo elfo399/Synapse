@@ -66,7 +66,7 @@ export function CaptureDialog({
 }
 
 export function UniversalCaptureForm({
-  initialType = "NOTE",
+  initialType = "RESOURCE",
   inbox = true,
   embedded = false,
   titleRef,
@@ -106,8 +106,7 @@ export function UniversalCaptureForm({
     setMode(next);
     if (next === "link") setType("BOOKMARK");
     else if (type === "BOOKMARK")
-      setType(next === "file" ? "RESOURCE" : "NOTE");
-    else if (next === "file" && type === "NOTE") setType("RESOURCE");
+      setType("RESOURCE");
   }
   function addFiles(files: File[]) {
     if (!files.length || busy || recording) return;

@@ -60,7 +60,7 @@ test("titleless text and pasted URL use universal capture and stable canonical U
       page.getByRole("button", { name: "Salva l’idea", exact: true }).click(),
     );
     created.push(note);
-    expect(note).toMatchObject({ title: content, type: "NOTE", inbox: true });
+    expect(note).toMatchObject({ title: content, type: "RESOURCE", inbox: true });
     await page.goto(`/items/${note.id}`);
     await expect(page).toHaveURL(getItemHref(note));
     const oldUrl = getItemHref(note);

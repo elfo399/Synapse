@@ -276,3 +276,4 @@
     align-items: flex-start;
   }
 }
+.advanced-delete-option{display:flex;gap:.7rem;align-items:flex-start;padding:.75rem;border:1px solid var(--border);border-radius:.6rem}.advanced-delete-option small,.advanced-delete-preview small{display:block;color:var(--text-muted);margin-top:.2rem}.advanced-delete-loading{display:flex;align-items:center;gap:.5rem}.advanced-delete-preview{padding:.7rem 0}.advanced-delete-preview p{display:flex;align-items:flex-start;gap:.4rem}.advanced-delete-preview ul{margin:.55rem 0;padding-left:1.2rem;max-height:11rem;overflow:auto}.advanced-delete-preview li{margin:.3rem 0}.advanced-delete-preview li span{color:var(--text-muted);font-size:.75rem;margin-left:.35rem}

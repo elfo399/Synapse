@@ -46,6 +46,7 @@ import { OrganizationPanel, RelationsPanel } from "./relations-panel";
 import { ResourceContents } from "./resource-contents";
 import { AreaWorkspace, ProjectWorkspace } from "./role-workspaces";
 import { TransferActions } from "./transfer-actions";
+import { AdvancedDeletionDialog } from "./advanced-deletion-dialog";
 import "./document.css";
 import "./detail-workspace.css";
 
@@ -266,13 +267,13 @@ function ItemEditor({
     try {
       await api("/api/items", {
         method: "POST",
-        body: JSON.stringify({ title: createTitle, type: "NOTE", inbox: true }),
+        body: JSON.stringify({ title: createTitle, type: "RESOURCE", inbox: true }),
       });
       setCreateTitle(null);
       changed();
       reload();
       notify(
-        "Nota collegata creata tra gli elementi da organizzare. Salva il contenuto per collegarla.",
+        "Risorsa collegata creata tra gli elementi da organizzare. Salva il contenuto per collegarla.",
       );
     } catch (error) {
       setError(errorMessage(error));
@@ -652,51 +653,42 @@ function ItemEditor({
           </aside>
         </div>
       </article>
-      <Modal
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title="Eliminare definitivamente questo elemento?"
-        description="L’elemento e i suoi collegamenti saranno eliminati. L’operazione è irreversibile. Puoi archiviarlo se vuoi conservarlo."
-      >
-        <label>
-          Digita <strong>{item.title}</strong> per confermare
-          <input
-            autoComplete="off"
-            value={confirmation}
-            onChange={(event) => setConfirmation(event.target.value)}
-            aria-label="Conferma il titolo dell’elemento"
-            placeholder="Titolo esatto dell’elemento"
-          />
-        </label>
-        {error && (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
-        )}
-        <div className="dialog-footer">
-          <button
-            className="button button-secondary"
-            onClick={() => setDeleteOpen(false)}
-          >
-            Conserva elemento
-          </button>
-          <button
-            className="button button-danger"
-            disabled={busy || confirmation !== item.title}
-            onClick={remove}
-          >
-            <Trash2 size={15} />
-            Elimina definitivamente
-          </button>
-        </div>
-      </Modal>
+      {(["AREA", "PROJECT"] as string[]).includes(item.type) ? (
+        <AdvancedDeletionDialog
+          item={item}
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          onDeleted={() => {
+            changed();
+            notify("Elemento eliminato definitivamente.");
+            router.push("/archive");
+          }}
+        />
+      ) : (
+        <Modal
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          title="Eliminare definitivamente questo elemento?"
+          description="L’elemento e i suoi collegamenti saranno eliminati. L’operazione è irreversibile. Puoi archiviarlo se vuoi conservarlo."
+        >
+          <label>
+            Digita <strong>{item.title}</strong> per confermare
+            <input autoComplete="off" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} aria-label="Conferma il titolo dell’elemento" placeholder="Titolo esatto dell’elemento" />
+          </label>
+          {error && <p className="form-error" role="alert">{error}</p>}
+          <div className="dialog-footer">
+            <button className="button button-secondary" onClick={() => setDeleteOpen(false)}>Conserva elemento</button>
+            <button className="button button-danger" disabled={busy || confirmation !== item.title} onClick={remove}><Trash2 size={15} />Elimina definitivamente</button>
+          </div>
+        </Modal>
+      )}
       <Modal
         open={createTitle !== null}
         onOpenChange={(open) => {
           if (!open) setCreateTitle(null);
         }}
-        title="Crea una nota collegata"
-        description="La nuova nota verrà aggiunta agli elementi da organizzare."
+        title="Crea una risorsa collegata"
+        description="La nuova risorsa verrà aggiunta agli elementi da organizzare."
       >
         <p className="linked-create-title">{createTitle}</p>
         {error && (
@@ -717,7 +709,7 @@ function ItemEditor({
             onClick={createLinked}
           >
             <Plus size={15} />
-            Crea nota collegata
+            Crea risorsa collegata
           </button>
         </div>
       </Modal>

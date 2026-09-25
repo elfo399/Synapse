@@ -16,14 +16,14 @@ const test = base.extend<{ menuFixture: MenuFixture }>({
     const query = `MenuE2E${randomUUID().replaceAll("-", "")}`;
     const tag = `menutag${randomUUID().replaceAll("-", "")}`;
     const created: FixtureItem[] = [];
-    async function create(type: "NOTE" | "TASK", label: string) {
+    async function create(type: "RESOURCE" | "TASK", label: string) {
       const response = await page.request.post("/api/items", {
         headers: { origin },
         data: {
           type,
           title: `${query} ${label}`,
           inbox: true,
-          tags: type === "NOTE" ? [tag] : [],
+          tags: type === "RESOURCE" ? [tag] : [],
         },
       });
       expect(response.status()).toBe(201);
@@ -32,7 +32,7 @@ const test = base.extend<{ menuFixture: MenuFixture }>({
       return item;
     }
     try {
-      const note = await create("NOTE", "nota");
+      const note = await create("RESOURCE", "nota");
       const task = await create("TASK", "attività");
       await provideFixture({ query, tag, note, task });
     } finally {
@@ -308,7 +308,7 @@ test("mobile navigation traps focus and workspace preferences persist", async ({
     )
     .toBe(true);
   await drawer.getByRole("link", { name: "Note", exact: true }).click();
-  await expect(page).toHaveURL("/notes");
+  await expect(page).toHaveURL("/resources");
   await expect(drawer).toHaveCount(0);
   for (const action of ["search", "capture"] as const) {
     await page

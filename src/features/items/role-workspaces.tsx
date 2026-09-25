@@ -17,7 +17,7 @@ import type { ItemDetail, RelationItem } from "@/domain/types";
 import { dateLabel, statusLabels } from "./types";
 import { UniversalCaptureForm } from "./capture-dialog";
 
-type CreateType = "PROJECT" | "RESOURCE" | "TASK" | "NOTE";
+type CreateType = "PROJECT" | "RESOURCE" | "TASK";
 
 function ContextualCreate({
   item,
@@ -34,7 +34,6 @@ function ContextualCreate({
     PROJECT: "Nuovo progetto",
     RESOURCE: "Nuova risorsa",
     TASK: "Nuova attività",
-    NOTE: "Nuova nota",
   };
   return (
     <Modal

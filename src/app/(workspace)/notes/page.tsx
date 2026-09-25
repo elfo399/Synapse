@@ -1,4 +1,5 @@
-import { ItemList } from "@/features/items/item-list";
-export default function Page() {
-  return <ItemList kind="notes" itemType="NOTE" />;
+import { redirect } from "next/navigation";
+
+export default function NotesPage() {
+  redirect("/resources");
 }

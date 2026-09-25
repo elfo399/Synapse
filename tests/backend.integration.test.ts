@@ -5,6 +5,7 @@ import {
   createItem,
   deleteItem,
   getItem,
+  getDeletionPreview,
   listItems,
   updateItem,
 } from "../src/server/items";
@@ -83,6 +84,20 @@ describe("item lifecycle with the real PostgreSQL database", () => {
     ).toBe(0);
   });
 
+  it("previews contained deletion without deleting shared resources", async () => {
+    const area = await createItem(owner, { title: "Deletion area", type: "AREA", inbox: false });
+    const otherArea = await createItem(owner, { title: "Shared parent", type: "AREA", inbox: false });
+    const project = await createItem(owner, { title: "Deletion project", type: "PROJECT", parentIds: [area.id], inbox: false });
+    const privateResource = await createItem(owner, { title: "Private resource", type: "RESOURCE", parentIds: [project.id], inbox: false });
+    const sharedResource = await createItem(owner, { title: "Shared resource", type: "RESOURCE", parentIds: [project.id, otherArea.id], primaryParentId: project.id, inbox: false });
+    const preview = await getDeletionPreview(owner, project.id, true);
+    expect(preview.delete.map((entry) => entry.id)).toEqual(expect.arrayContaining([project.id, privateResource.id]));
+    expect(preview.retained.find((entry) => entry.id === sharedResource.id)?.reason).toContain("Shared parent");
+    await deleteItem(owner, project.id, project.title, { includeContained: true, planId: preview.planId });
+    await expect(getItem(owner, privateResource.id)).rejects.toMatchObject({ status: 404 });
+    expect((await getItem(owner, sharedResource.id)).id).toBe(sharedResource.id);
+  });
+
   it("maintains backlinks, manual provenance, renames, and late target creation", async () => {
     const source = await createItem(owner, {
       title: "Wiki source",
@@ -142,7 +157,7 @@ describe("item lifecycle with the real PostgreSQL database", () => {
       updateItem(owner, area.id, { parentIds: [project.id] }),
     ).rejects.toMatchObject({ status: 400 });
     await expect(
-      updateItem(owner, area.id, { type: "NOTE" }),
+      updateItem(owner, area.id, { type: "TASK" }),
     ).rejects.toMatchObject({ status: 409 });
     expect((await getItem(owner, area.id)).outgoing).toHaveLength(0);
   });

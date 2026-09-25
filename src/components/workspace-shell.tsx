@@ -18,7 +18,6 @@ import {
   CheckSquare,
   CalendarDays,
   ChevronDown,
-  FileText,
   Folder,
   Hash,
   House,
@@ -48,7 +47,6 @@ const navigation = [
     items: [
       { href: "/", label: "Inizio", icon: House },
       { href: "/inbox", label: "Da organizzare", icon: Inbox },
-      { href: "/notes", label: "Note", icon: FileText },
       { href: "/tasks", label: "Attività", icon: CheckSquare },
       { href: "/planner", label: "Planner", icon: CalendarDays },
     ],
@@ -131,7 +129,7 @@ export function WorkspaceShell({
     () => false,
   );
   const capture = useCallback(
-    (type: ItemType = "NOTE", inbox = true) =>
+    (type: ItemType = "RESOURCE", inbox = true) =>
       setCaptureState({ type, inbox, key: Date.now() }),
     [],
   );

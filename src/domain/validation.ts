@@ -44,7 +44,7 @@ export const itemSchema = z
   .object({
     title: titleSchema,
     content: z.string().max(500_000).default(""),
-    type: z.enum(ITEM_TYPES).default("NOTE"),
+    type: z.enum(ITEM_TYPES).default("RESOURCE"),
     status: z.enum(ITEM_STATUSES).optional(),
     inbox: z.boolean().default(true),
     tags: z.array(tagSchema).max(30).default([]),

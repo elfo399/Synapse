@@ -39,7 +39,7 @@ describe("PostgreSQL search and bounded graph", () => {
         title: "Database design",
         content:
           "We chose [[PostgreSQL]] for **durability** and [indexed retrieval](https://example.test/search).",
-        type: "NOTE",
+        type: "RESOURCE",
       })
     ).id;
     await createItem(otherId, {
@@ -97,7 +97,7 @@ describe("PostgreSQL search and bounded graph", () => {
       title: "Sintesi progressiva",
       content:
         "Conserva il contesto originale, poi rendi più facile ritrovare le parti utili.\n\n**Livello 1:** Raccogli.\n**Livello 2:** Evidenzia.\n**Livello 3:** Riassumi con parole tue.\n\nCollega il risultato alle [[Note atomiche]].",
-      type: "NOTE",
+      type: "RESOURCE",
     });
     const result = await searchItems(otherId, { q: "note" });
     const snippet = result.items.find((hit) => hit.id === item.id)?.snippet;
@@ -153,7 +153,7 @@ describe("PostgreSQL search and bounded graph", () => {
       ),
     ).toEqual([targetId]);
     expect(
-      (await getGraph(userId, { type: "NOTE" })).nodes.map((node) => node.id),
+      (await getGraph(userId, { type: "RESOURCE" })).nodes.map((node) => node.id),
     ).toEqual([sourceId]);
     expect(
       (await getGraph(userId, { parent: projectId })).nodes
@@ -175,7 +175,7 @@ describe("PostgreSQL search and bounded graph", () => {
   it("expands local depth through both directions, bounds results and enforces ownership", async () => {
     const branch = await createItem(userId, {
       title: "Third level context",
-      type: "NOTE",
+      type: "RESOURCE",
       parentIds: [projectId],
     });
     try {

@@ -1,5 +1,4 @@
 export const ITEM_TYPES = [
-  "NOTE",
   "TASK",
   "PROJECT",
   "AREA",
@@ -146,7 +145,7 @@ export interface ItemListResponse {
   pageSize: number;
 }
 export interface DashboardData {
-  counts: { inbox: number; tasks: number; projects: number; notes: number };
+  counts: { inbox: number; tasks: number; projects: number; resources: number };
   todayTasks: ItemSummary[];
   activeProjects: ItemSummary[];
   recentItems: ItemSummary[];

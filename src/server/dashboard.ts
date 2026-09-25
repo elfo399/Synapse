@@ -10,7 +10,7 @@ export async function getDashboard(userId: string) {
     inbox,
     tasks,
     projects,
-    notes,
+    resources,
     todayTasks,
     activeProjects,
     recentItems,
@@ -26,7 +26,7 @@ export async function getDashboard(userId: string) {
         status: { notIn: ["DONE", "CANCELLED"] },
       },
     }),
-    prisma.item.count({ where: { ...active, type: "NOTE" } }),
+    prisma.item.count({ where: { ...active, type: "RESOURCE" } }),
     prisma.item.findMany({
       where: {
         ...active,
@@ -59,7 +59,7 @@ export async function getDashboard(userId: string) {
     }),
   ]);
   return {
-    counts: { inbox, tasks, projects, notes },
+    counts: { inbox, tasks, projects, resources },
     todayTasks: todayTasks.map(serializeItem),
     activeProjects: activeProjects.map(serializeItem),
     recentItems: recentItems.map(serializeItem),

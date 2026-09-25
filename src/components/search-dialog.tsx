@@ -50,7 +50,7 @@ const actions: CommandAction[] = [
     description: "Salva un pensiero da organizzare",
     keywords: "nuova idea cattura appunto",
     icon: Plus,
-    type: "NOTE",
+    type: "RESOURCE",
     inbox: true,
   },
   {
@@ -59,7 +59,7 @@ const actions: CommandAction[] = [
     description: "Apri uno spazio per scrivere",
     keywords: "crea note testo markdown",
     icon: FilePlus2,
-    type: "NOTE",
+    type: "RESOURCE",
   },
   {
     id: "graph",

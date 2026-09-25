@@ -126,7 +126,7 @@ test("area, project and resource have dedicated workspaces and contextual action
     const noteTitle = `Nota contestuale ${suffix}`;
     await contextualCreate("Nuova nota", noteTitle);
     const noteChildren = await page.request.get(
-      `/api/items?parent=${resource.id}&type=NOTE`,
+      `/api/items?parent=${resource.id}&type=RESOURCE`,
     );
     expect(
       (await noteChildren.json()).items.map((item: Created) => item.title),

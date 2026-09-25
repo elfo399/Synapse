@@ -11,7 +11,6 @@ import {
 } from "./shared";
 
 const shapes: Record<ItemType, Css.NodeShape> = {
-  NOTE: "ellipse",
   PROJECT: "round-rectangle",
   AREA: "hexagon",
   RESOURCE: "diamond",

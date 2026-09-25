@@ -245,8 +245,7 @@ export function RelationsPanel({
 const allowedContextTypes: Record<string, string[]> = {
   AREA: [],
   PROJECT: ["AREA"],
-  RESOURCE: ["PROJECT", "AREA"],
-  NOTE: ["PROJECT", "AREA", "RESOURCE"],
+  RESOURCE: ["PROJECT", "AREA", "RESOURCE"],
   TASK: ["PROJECT", "AREA"],
   BOOKMARK: ["PROJECT", "AREA", "RESOURCE"],
 };

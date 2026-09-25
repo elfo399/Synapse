@@ -72,14 +72,12 @@ function labelFor(node: GraphNode, radius: number) {
 
 function shapeFor(node: GraphNode, radius: number): BufferGeometry {
   switch (node.type) {
-    case "NOTE":
-      return new SphereGeometry(radius, 14, 10);
+    case "RESOURCE":
+      return new OctahedronGeometry(radius * 1.2);
     case "PROJECT":
       return new BoxGeometry(radius * 1.65, radius * 1.65, radius * 1.65);
     case "AREA":
       return new CylinderGeometry(radius, radius, radius * 1.5, 6);
-    case "RESOURCE":
-      return new OctahedronGeometry(radius * 1.2);
     case "TASK":
       return new BoxGeometry(radius * 1.8, radius * 1.3, radius * 1.1);
     case "BOOKMARK":

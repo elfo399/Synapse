@@ -53,7 +53,7 @@ test("private workspace: login, capture, process, graph, archive and logout", as
     .getByRole("navigation", { name: "Percorso" })
     .getByRole("link", { name: "Note", exact: true })
     .click();
-  await expect(page).toHaveURL(/\/notes$/);
+  await expect(page).toHaveURL(/\/resources$/);
   await expect(
     page.getByRole("heading", { name: "Note", exact: true }),
   ).toBeVisible();

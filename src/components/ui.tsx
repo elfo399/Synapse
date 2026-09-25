@@ -8,7 +8,6 @@ import {
   Bookmark,
   Box,
   CheckSquare,
-  FileText,
   Folder,
   Inbox,
   Layers3,
@@ -28,7 +27,6 @@ export function TypeIcon({
   size?: number;
 }) {
   const Icon = {
-    NOTE: FileText,
     TASK: CheckSquare,
     PROJECT: Folder,
     AREA: Layers3,

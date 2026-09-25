@@ -14,7 +14,6 @@ export type {
 } from "@/domain/types";
 export type ItemSummary = DomainItemSummary & { snippet?: string };
 export const typeLabels: Record<ItemType, string> = {
-  NOTE: "Nota",
   TASK: "Attività",
   PROJECT: "Progetto",
   AREA: "Area",
@@ -22,7 +21,6 @@ export const typeLabels: Record<ItemType, string> = {
   BOOKMARK: "Preferito",
 };
 export const typePluralLabels: Record<ItemType, string> = {
-  NOTE: "Note",
   TASK: "Attività",
   PROJECT: "Progetti",
   AREA: "Aree",
@@ -30,7 +28,6 @@ export const typePluralLabels: Record<ItemType, string> = {
   BOOKMARK: "Preferiti",
 };
 export const typeRoutes: Record<ItemType, string> = {
-  NOTE: "/notes",
   TASK: "/tasks",
   PROJECT: "/projects",
   AREA: "/areas",
@@ -38,7 +35,6 @@ export const typeRoutes: Record<ItemType, string> = {
   BOOKMARK: "/bookmarks",
 };
 export const newItemLabels: Record<ItemType, string> = {
-  NOTE: "Nuova nota",
   TASK: "Nuova attività",
   PROJECT: "Nuovo progetto",
   AREA: "Nuova area",
@@ -52,7 +48,6 @@ export const relationLabels = {
 };
 export const pageLabels: Record<string, string> = {
   inbox: "Da organizzare",
-  notes: "Note",
   tasks: "Attività",
   projects: "Progetti",
   areas: "Aree",

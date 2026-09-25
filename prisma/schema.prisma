@@ -9,7 +9,6 @@ datasource db {
 }
 
 enum ItemType {
-  NOTE
   TASK
   PROJECT
   AREA
@@ -188,7 +187,7 @@ model Item {
   id String @id @default(cuid())
   userId String
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type ItemType @default(NOTE)
+  type ItemType @default(RESOURCE)
   title String @db.VarChar(200)
   titleNormalized String @db.VarChar(200)
   content String @default("") @db.Text

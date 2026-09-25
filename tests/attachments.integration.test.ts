@@ -53,7 +53,7 @@ describe("Private durable attachments and universal capture", () => {
       title: "Un pensiero utile",
       content: "Un pensiero utile",
       inbox: true,
-      type: "NOTE",
+      type: "RESOURCE",
     });
     expect(second.title).toBe("Un pensiero utile (2)");
   });

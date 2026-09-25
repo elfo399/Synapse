@@ -113,7 +113,7 @@ export async function exportArchive(
   const records: ExportItem[] = items.map((item) => ({
     id: item.id,
     type:
-      item.type === "NOTE" || item.type === "BOOKMARK"
+      item.type === "BOOKMARK"
         ? "RESOURCE"
         : (item.type as ExportItem["type"]),
     title: item.title,
@@ -270,7 +270,14 @@ export async function importArchive(
   )
     throw new HttpError(400, "Versione dell'archivio non supportata.");
   const manifestRootId = manifest.rootId;
-  const items = archiveJson<unknown[]>(files, "items.json");
+  // Native archives created before the resource unification can still contain
+  // NOTE records. They are the same persisted Item and are imported as the
+  // current RESOURCE type without duplicating their blocks or attachments.
+  const items = archiveJson<unknown[]>(files, "items.json").map((item) =>
+    item && typeof item === "object" && (item as { type?: unknown }).type === "NOTE"
+      ? { ...(item as Record<string, unknown>), type: "RESOURCE" }
+      : item,
+  );
   const relations = archiveJson<unknown[]>(files, "relations.json");
   if (!items.length || items.length > 2_000 || !items.every(validItem))
     throw new HttpError(400, "Gli elementi dell'archivio non sono validi.");

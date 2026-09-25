@@ -17,7 +17,7 @@ const test = base.extend<{ graphFixture: GraphFixture }>({
     const created: FixtureItem[] = [];
     async function create(
       label: string,
-      type: "PROJECT" | "NOTE" | "TASK",
+      type: "PROJECT" | "RESOURCE" | "TASK",
       parentIds: string[] = [],
     ) {
       const response = await page.request.post("/api/items", {
@@ -31,8 +31,8 @@ const test = base.extend<{ graphFixture: GraphFixture }>({
     }
     try {
       const project = await create("project", "PROJECT");
-      const note = await create("first note", "NOTE", [project.id]);
-      const otherNote = await create("second note", "NOTE", [project.id]);
+      const note = await create("first note", "RESOURCE", [project.id]);
+      const otherNote = await create("second note", "RESOURCE", [project.id]);
       const task = await create("task", "TASK", [project.id]);
       await provideFixture({
         path: `/graph?focus=${encodeURIComponent(project.id)}`,

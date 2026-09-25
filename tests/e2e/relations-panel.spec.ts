@@ -11,7 +11,7 @@ test("the connections panel shows only manual semantic links from the current it
   const origin = new URL(baseURL!).origin;
   const suffix = randomUUID().slice(0, 8);
   const created: ItemDetail[] = [];
-  async function create(title: string, type: ItemDetail["type"] = "NOTE") {
+  async function create(title: string, type: ItemDetail["type"] = "RESOURCE") {
     const response = await page.request.post("/api/items", {
       headers: { origin },
       data: { title, type, inbox: false },

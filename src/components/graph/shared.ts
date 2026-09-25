@@ -2,7 +2,6 @@ import type { GraphData } from "@/domain/graph";
 import type { ItemType } from "@/domain/types";
 
 export const nodeColors: Record<ItemType, string> = {
-  NOTE: "#a8b7e8",
   PROJECT: "#bda8e0",
   AREA: "#a8b8af",
   RESOURCE: "#9fbecb",

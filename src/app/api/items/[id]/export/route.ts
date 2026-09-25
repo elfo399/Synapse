@@ -4,10 +4,11 @@ import { exportArchive, exportReadableArchive } from "@/server/transfers";
 import { route } from "@/server/http";
 
 export const runtime = "nodejs";
+type Context = { params: Promise<{ id: string }> };
 
 export const GET = (
   request: Request,
-  context: RouteContext<"/api/items/[id]/export">,
+  context: Context,
 ) =>
   route(async () => {
     const user = await requireUser(request);
