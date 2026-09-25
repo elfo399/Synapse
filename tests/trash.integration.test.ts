@@ -52,7 +52,7 @@ describe("Cestino recuperabile", () => {
       content: "Contenuto da conservare",
       archived: true,
     });
-    const moved = await moveItemToTrash(owner, resource.id, resource.title);
+    const moved = await moveItemToTrash(owner, resource.id, true);
     await expect(getItem(owner, resource.id)).rejects.toMatchObject({
       status: 404,
     });
@@ -103,7 +103,7 @@ describe("Cestino recuperabile", () => {
       inbox: false,
     });
     const preview = await getDeletionPreview(owner, project.id, true);
-    const moved = await moveItemToTrash(owner, project.id, project.title, {
+    const moved = await moveItemToTrash(owner, project.id, true, {
       includeContained: true,
       planId: preview.planId,
     });
@@ -130,7 +130,7 @@ describe("Cestino recuperabile", () => {
       title: "Titolo in conflitto",
       type: "RESOURCE",
     });
-    const moved = await moveItemToTrash(owner, original.id, original.title);
+    const moved = await moveItemToTrash(owner, original.id, true);
     await createItem(owner, { title: "Titolo in conflitto", type: "RESOURCE" });
     await expect(
       restoreTrashOperation(other, moved.operationId),
@@ -145,16 +145,16 @@ describe("Cestino recuperabile", () => {
       title: "Purge dal cestino",
       type: "TASK",
     });
-    const moved = await moveItemToTrash(owner, item.id, item.title);
+    const moved = await moveItemToTrash(owner, item.id, true);
     const operation = (await listTrash(owner)).find(
       (entry) => entry.id === moved.operationId,
     )!;
     const { getTrashPurgePreview } = await import("@/server/trash");
     const preview = await getTrashPurgePreview(owner, operation.id);
     await expect(
-      purgeTrashOperation(owner, operation.id, "titolo errato", preview.planId),
+      purgeTrashOperation(owner, operation.id, false, preview.planId),
     ).rejects.toMatchObject({ status: 400 });
-    await purgeTrashOperation(owner, operation.id, item.title, preview.planId);
+    await purgeTrashOperation(owner, operation.id, true, preview.planId);
     expect(await prisma.item.findUnique({ where: { id: item.id } })).toBeNull();
   });
 });

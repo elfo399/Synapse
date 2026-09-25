@@ -154,7 +154,7 @@ describe("area, project and resource hierarchy", () => {
       }),
     ).rejects.toMatchObject({ status: 400 });
     const preview = await getDeletionPreview(userId, area.id, false);
-    await moveItemToTrash(userId, area.id, area.title, {
+    await moveItemToTrash(userId, area.id, true, {
       planId: preview.planId,
     });
     expect((await getItem(userId, project.id)).id).toBe(project.id);

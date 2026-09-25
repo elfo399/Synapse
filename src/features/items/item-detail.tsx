@@ -2,7 +2,7 @@
 
 import { AppSelect } from "@/components/select";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -47,6 +47,7 @@ import { ResourceContents } from "./resource-contents";
 import { AreaWorkspace, ProjectWorkspace } from "./role-workspaces";
 import { TransferActions } from "./transfer-actions";
 import { AdvancedDeletionDialog } from "./advanced-deletion-dialog";
+import { FloatingItemActions } from "./floating-item-actions";
 import "./document.css";
 import "./detail-workspace.css";
 
@@ -72,7 +73,7 @@ function ItemEditor({
   reload: () => void;
 }) {
   const router = useRouter();
-  const { notify } = useWorkspace();
+  const { notify, registerNavigationGuard, requestNavigation } = useWorkspace();
   const [title, setTitle] = useState(item.title);
   const [content, setContent] = useState(item.content);
   const [type, setType] = useState(item.type);
@@ -84,8 +85,10 @@ function ItemEditor({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [confirmation, setConfirmation] = useState("");
   const [createTitle, setCreateTitle] = useState<string | null>(null);
+  const [unsavedAction, setUnsavedAction] = useState<
+    "discard" | "archive" | "trash" | null
+  >(null);
   const [propertiesOpen, setPropertiesOpen] = useState(false);
   const [editing, setEditing] = useState(!item.content);
   const contexts = item.outgoing.filter(
@@ -185,8 +188,10 @@ function ItemEditor({
           ? "Elemento organizzato. Un po’ più di chiarezza."
           : "Modifiche salvate.",
       );
+      return true;
     } catch (error) {
       setError(errorMessage(error));
+      return false;
     } finally {
       setBusy(false);
     }
@@ -222,7 +227,7 @@ function ItemEditor({
     try {
       await api(`/api/items/${item.id}`, {
         method: "DELETE",
-        body: JSON.stringify({ confirmTitle: confirmation }),
+        body: JSON.stringify({ confirmed: true }),
       });
       changed();
       notify("Elemento spostato nel Cestino.");
@@ -232,6 +237,66 @@ function ItemEditor({
     } finally {
       setBusy(false);
     }
+  }
+  async function discardChanges() {
+    setBusy(true);
+    setError("");
+    try {
+      const result = await api<{ item: ItemDetailType }>(`/api/items/${item.id}`);
+      const saved = result.item;
+      setTitle(saved.title);
+      setContent(saved.content);
+      setType(saved.type);
+      setStatus(saved.status);
+      setTags(saved.tags.map((tag) => tag.name).join(", "));
+      setUrl(saved.url || "");
+      setDueAt(saved.dueAt?.slice(0, 10) || "");
+      setVersion(saved.version);
+      reload();
+      return true;
+    } catch (reason) {
+      setError(errorMessage(reason));
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+  function requestArchive() {
+    if (dirty) setUnsavedAction("archive");
+    else void archive();
+  }
+  function requestTrash() {
+    if (dirty) setUnsavedAction("trash");
+    else setDeleteOpen(true);
+  }
+  async function continueAfterUnsaved(choice: "save" | "discard") {
+    const complete = choice === "save" ? await save() : await discardChanges();
+    if (!complete) return;
+    const action = unsavedAction;
+    setUnsavedAction(null);
+    if (action === "archive") await archive();
+    if (action === "trash") setDeleteOpen(true);
+  }
+  useEffect(() => {
+    registerNavigationGuard({
+      isDirty: () => dirty,
+      save: () => save(),
+      discard: () => discardChanges(),
+    });
+    return () => registerNavigationGuard(null);
+  });
+  function guardedLink(event: MouseEvent<HTMLAnchorElement>) {
+    if (
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    )
+      return;
+    event.preventDefault();
+    const url = new URL(event.currentTarget.href, window.location.href);
+    requestNavigation(`${url.pathname}${url.search}${url.hash}`);
   }
   function insertAttachment(file: AttachmentSummary) {
     setContent((value) => value + "\n\n" + attachmentMarkdown(file));
@@ -302,6 +367,7 @@ function ItemEditor({
       <div className="document-topline" id="panoramica">
         <nav className="detail-breadcrumbs" aria-label="Percorso">
           <Link
+            onClick={guardedLink}
             href={
               parent
                 ? typeRoutes[parent.type]
@@ -319,7 +385,7 @@ function ItemEditor({
           {parent && (
             <>
               <ChevronRight size={12} />
-              <Link href={getItemHref(parent)}>{parent.title}</Link>
+              <Link onClick={guardedLink} href={getItemHref(parent)}>{parent.title}</Link>
             </>
           )}
           <ChevronRight size={12} />
@@ -373,7 +439,7 @@ function ItemEditor({
         <div className="document-archive">
           <Archive size={16} />
           <span>Questo elemento è archiviato.</span>
-          <button className="text-link" disabled={busy} onClick={archive}>
+          <button className="text-link" disabled={busy} onClick={requestArchive}>
             <RotateCcw size={14} />
             Ripristina
           </button>
@@ -634,7 +700,7 @@ function ItemEditor({
                 <Network size={14} />
                 Apri nel grafo
               </Link>
-              <button className="text-link" disabled={busy} onClick={archive}>
+              <button className="text-link" disabled={busy} onClick={requestArchive}>
                 {item.archivedAt ? (
                   <RotateCcw size={14} />
                 ) : (
@@ -645,10 +711,7 @@ function ItemEditor({
               <button
                 className="text-link document-delete"
                 disabled={busy}
-                onClick={() => {
-                  setConfirmation("");
-                  setDeleteOpen(true);
-                }}
+                onClick={requestTrash}
               >
                 <Trash2 size={14} />
                 Sposta nel Cestino
@@ -657,6 +720,43 @@ function ItemEditor({
           </aside>
         </div>
       </article>
+      <FloatingItemActions
+        dirty={dirty}
+        busy={busy}
+        editing={editing}
+        archived={Boolean(item.archivedAt)}
+        onSave={() => void save()}
+        onToggleEditing={() => {
+          setEditing((value) => !value);
+          document.getElementById("contenuto")?.scrollIntoView({ behavior: "smooth" });
+        }}
+        onOrganize={() =>
+          document.getElementById("organizzazione")?.scrollIntoView({ behavior: "smooth" })
+        }
+        onDiscard={() => setUnsavedAction("discard")}
+        onArchive={requestArchive}
+        onTrash={requestTrash}
+      />
+      <Modal
+        open={unsavedAction !== null}
+        onOpenChange={(open) => {
+          if (!open) setUnsavedAction(null);
+        }}
+        title="Ci sono modifiche non salvate"
+        description="Scegli come procedere prima di lasciare o modificare questo elemento."
+      >
+        <div className="dialog-footer">
+          <button className="button button-secondary" disabled={busy} onClick={() => setUnsavedAction(null)}>
+            Rimani nella pagina
+          </button>
+          <button className="button button-secondary" disabled={busy} onClick={() => void continueAfterUnsaved("discard")}>
+            Scarta modifiche
+          </button>
+          <button className="button button-primary" disabled={busy || !title.trim()} onClick={() => void continueAfterUnsaved("save")}>
+            <Save size={15} /> Salva e continua
+          </button>
+        </div>
+      </Modal>
       {(["AREA", "PROJECT"] as string[]).includes(item.type) ? (
         <AdvancedDeletionDialog
           item={item}
@@ -675,16 +775,6 @@ function ItemEditor({
           title="Spostare questo elemento nel Cestino?"
           description="L?elemento rester? recuperabile dal Cestino. Contenuti, allegati e collegamenti non verranno eliminati."
         >
-          <label>
-            Digita <strong>{item.title}</strong> per confermare
-            <input
-              autoComplete="off"
-              value={confirmation}
-              onChange={(event) => setConfirmation(event.target.value)}
-              aria-label="Conferma il titolo dell’elemento"
-              placeholder="Titolo esatto dell’elemento"
-            />
-          </label>
           {error && (
             <p className="form-error" role="alert">
               {error}
@@ -699,7 +789,7 @@ function ItemEditor({
             </button>
             <button
               className="button button-danger"
-              disabled={busy || confirmation !== item.title}
+              disabled={busy}
               onClick={remove}
             >
               <Trash2 size={15} /> Sposta nel Cestino

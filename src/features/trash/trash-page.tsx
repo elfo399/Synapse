@@ -28,7 +28,7 @@ type Preview = {
   relations: number;
   plannerBlocks: number;
 };
-type Summary = { operations: number; items: number; planId: string };
+type Summary = { operations: number; items: number; attachments: number; planId: string };
 
 const typeLabels: Record<string, string> = {
   AREA: "Area",
@@ -49,7 +49,7 @@ export function TrashPage() {
   const [purge, setPurge] = useState<Operation | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [emptyOpen, setEmptyOpen] = useState(false);
-  const [confirmation, setConfirmation] = useState("");
+  const [emptyStep, setEmptyStep] = useState<1 | 2>(1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -121,7 +121,6 @@ export function TrashPage() {
   async function openPurge(operation: Operation) {
     setPurge(operation);
     setPreview(null);
-    setConfirmation("");
     setError("");
     try {
       setPreview(
@@ -138,10 +137,7 @@ export function TrashPage() {
     try {
       await api(`/api/trash/${purge.id}/purge`, {
         method: "POST",
-        body: JSON.stringify({
-          confirmTitle: confirmation,
-          planId: preview.planId,
-        }),
+        body: JSON.stringify({ confirmed: true, planId: preview.planId }),
       });
       setPurge(null);
       await load();
@@ -158,10 +154,10 @@ export function TrashPage() {
     try {
       await api("/api/trash/empty", {
         method: "POST",
-        body: JSON.stringify({ confirm: confirmation, planId: summary.planId }),
+        body: JSON.stringify({ confirmed: true, planId: summary.planId }),
       });
       setEmptyOpen(false);
-      setConfirmation("");
+      setEmptyStep(1);
       await load();
     } catch (reason) {
       setError(errorMessage(reason));
@@ -193,7 +189,7 @@ export function TrashPage() {
           className="button button-danger"
           disabled={!summary?.items}
           onClick={() => {
-            setConfirmation("");
+            setEmptyStep(1);
             setEmptyOpen(true);
           }}
         >
@@ -382,14 +378,6 @@ export function TrashPage() {
                 )
                 .join(" ? ")}
             </p>
-            <label>
-              Digita <strong>{preview.root.title}</strong> per confermare
-              <input
-                autoComplete="off"
-                value={confirmation}
-                onChange={(event) => setConfirmation(event.target.value)}
-              />
-            </label>
           </>
         ) : (
           <p>Caricamento anteprima?</p>
@@ -403,7 +391,7 @@ export function TrashPage() {
           </button>
           <button
             className="button button-danger"
-            disabled={busy || !preview || confirmation !== preview.root.title}
+            disabled={busy || !preview}
             onClick={() => void purgeNow()}
           >
             <Trash2 size={15} /> Elimina definitivamente
@@ -413,37 +401,61 @@ export function TrashPage() {
 
       <Modal
         open={emptyOpen}
-        onOpenChange={setEmptyOpen}
-        title="Svuotare il Cestino?"
-        description="Questa azione ? irreversibile e rimuove tutti gli elementi, gli allegati e i metadati nel Cestino."
+        onOpenChange={(open) => {
+          setEmptyOpen(open);
+          if (!open) setEmptyStep(1);
+        }}
+        title={
+          emptyStep === 1
+            ? "Svuotare il Cestino?"
+            : "Confermi l?eliminazione definitiva?"
+        }
+        description={
+          emptyStep === 1
+            ? "Questa azione rimuove definitivamente gli elementi del Cestino."
+            : "Non sar? possibile ripristinare elementi, allegati o metadati."
+        }
       >
         <p>
           {summary?.items ?? 0} elementi in {summary?.operations ?? 0}{" "}
-          {summary?.operations === 1 ? "gruppo" : "gruppi"} saranno eliminati
-          definitivamente.
+          {summary?.operations === 1 ? "gruppo" : "gruppi"}, con{" "}
+          {summary?.attachments ?? 0} allegati, saranno eliminati definitivamente.
         </p>
-        <label>
-          Digita <strong>SVUOTA CESTINO</strong> per confermare
-          <input
-            autoComplete="off"
-            value={confirmation}
-            onChange={(event) => setConfirmation(event.target.value)}
-          />
-        </label>
         <div className="dialog-footer">
-          <button
-            className="button button-secondary"
-            onClick={() => setEmptyOpen(false)}
-          >
-            Annulla
-          </button>
-          <button
-            className="button button-danger"
-            disabled={busy || confirmation !== "SVUOTA CESTINO"}
-            onClick={() => void emptyNow()}
-          >
-            <Trash2 size={15} /> Svuota Cestino
-          </button>
+          {emptyStep === 1 ? (
+            <>
+              <button
+                className="button button-secondary"
+                onClick={() => setEmptyOpen(false)}
+              >
+                Annulla
+              </button>
+              <button
+                className="button button-danger"
+                disabled={busy || !summary?.items}
+                onClick={() => setEmptyStep(2)}
+              >
+                Continua
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                className="button button-secondary"
+                disabled={busy}
+                onClick={() => setEmptyStep(1)}
+              >
+                Torna indietro
+              </button>
+              <button
+                className="button button-danger"
+                disabled={busy || !summary?.items}
+                onClick={() => void emptyNow()}
+              >
+                <Trash2 size={15} /> Svuota definitivamente il Cestino
+              </button>
+            </>
+          )}
         </div>
       </Modal>
     </div>

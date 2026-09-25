@@ -863,7 +863,8 @@
 .resource-block {
   position: relative;
   min-width: 0;
-  padding: 16px 58px 16px 16px;
+  /* Keep text and the explicit edit action clear of the three block controls. */
+  padding: 16px 122px 16px 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface-raised);
@@ -937,15 +938,29 @@
 }
 .resource-block-text {
   min-height: 44px;
+  /* The edit control and ordering controls occupy the top row. */
+  padding-top: 28px;
 }
 .resource-block-text > .text-link {
-  float: right;
-  margin: -3px 0 8px 14px;
+  position: absolute;
+  top: 17px;
+  right: 112px;
+  margin: 0;
   font-size: 11px;
 }
 .resource-block-text .markdown-preview {
   min-height: 0;
   padding: 0;
+}
+@media (max-width: 700px) {
+  .resource-block {
+    padding: 58px 16px 16px;
+  }
+  .resource-block-text > .text-link {
+    top: 18px;
+    right: auto;
+    left: 16px;
+  }
 }
 .resource-block-edit {
   display: grid;

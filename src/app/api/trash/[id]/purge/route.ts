@@ -9,7 +9,7 @@ export const POST = (request: Request, context: Context) =>
     const user = await requireUser(request);
     const body = z
       .object({
-        confirmTitle: z.string().max(200),
+        confirmed: z.literal(true),
         planId: z.string().length(64),
       })
       .strict()
@@ -17,7 +17,7 @@ export const POST = (request: Request, context: Context) =>
     await purgeTrashOperation(
       user.id,
       idSchema.parse((await context.params).id),
-      body.confirmTitle,
+      body.confirmed,
       body.planId,
     );
     return json({ success: true });

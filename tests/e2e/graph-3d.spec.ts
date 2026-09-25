@@ -46,7 +46,7 @@ const test = base.extend<{ graphFixture: GraphFixture }>({
         created.map((item) =>
           page.request.delete(`/api/items/${item.id}`, {
             headers: { origin },
-            data: { confirmTitle: item.title },
+            data: { confirmed: true },
           }),
         ),
       );

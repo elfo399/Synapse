@@ -38,7 +38,7 @@ async function remove(page: Page, item: ItemDetail, origin: string) {
     (
       await page.request.delete(`/api/items/${item.id}`, {
         headers: { origin },
-        data: { confirmTitle: item.title },
+        data: { confirmed: true },
       })
     ).status(),
   ).toBe(200);

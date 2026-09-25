@@ -147,7 +147,7 @@ test("area, project and resource have dedicated workspaces and contextual action
     for (const item of [...created].reverse()) {
       await page.request.delete(`/api/items/${item.id}`, {
         headers: { origin },
-        data: { confirmTitle: item.title },
+        data: { confirmed: true },
       });
     }
   }

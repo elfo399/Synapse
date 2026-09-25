@@ -46,7 +46,7 @@ test("short document titles stay compact after changing viewport and editor mode
   } finally {
     const cleanup = await page.request.delete(`/api/items/${item.id}`, {
       headers: { origin },
-      data: { confirmTitle: title },
+      data: { confirmed: true },
     });
     expect(cleanup.status()).toBe(200);
   }
@@ -188,7 +188,7 @@ for (const scenario of [
         created.map((item) =>
           page.request.delete(`/api/items/${item.id}`, {
             headers: { origin },
-            data: { confirmTitle: item.title },
+            data: { confirmed: true },
           }),
         ),
       );

@@ -40,7 +40,7 @@ const test = base.extend<{ menuFixture: MenuFixture }>({
         created.map((item) =>
           page.request.delete(`/api/items/${item.id}`, {
             headers: { origin },
-            data: { confirmTitle: item.title },
+            data: { confirmed: true },
           }),
         ),
       );

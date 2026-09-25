@@ -504,7 +504,7 @@ export async function getDeletionPreview(
 export async function moveItemToTrash(
   userId: string,
   id: string,
-  confirmTitle: string,
+  confirmed: boolean,
   options: { includeContained?: boolean; planId?: string } = {},
 ) {
   return withUserTransaction(userId, async (tx) => {
@@ -513,11 +513,8 @@ export async function moveItemToTrash(
       select: { id: true, title: true, type: true },
     });
     if (!item) throw new HttpError(404, "Elemento non trovato.");
-    if (item.title !== confirmTitle)
-      throw new HttpError(
-        400,
-        "Digita il titolo esatto dell’elemento per spostarlo nel Cestino.",
-      );
+    if (confirmed !== true)
+      throw new HttpError(400, "Conferma lo spostamento nel Cestino.");
     const advanced = item.type === "AREA" || item.type === "PROJECT";
     const preview = advanced
       ? await deletionPreviewInTransaction(

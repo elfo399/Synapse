@@ -335,6 +335,7 @@ export function OrganizationPanel({
   return (
     <>
       <section
+        id="organizzazione"
         className="detail-card detail-context"
         aria-labelledby="context-heading"
       >

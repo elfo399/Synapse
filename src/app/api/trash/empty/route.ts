@@ -7,9 +7,9 @@ export const POST = (request: Request) =>
   route(async () => {
     const user = await requireUser(request);
     const body = z
-      .object({ confirm: z.string(), planId: z.string().length(64) })
+      .object({ confirmed: z.literal(true), planId: z.string().length(64) })
       .strict()
       .parse(await readJson(request));
-    await emptyTrash(user.id, body.confirm, body.planId);
+    await emptyTrash(user.id, body.confirmed, body.planId);
     return json({ success: true });
   });

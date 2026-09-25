@@ -190,17 +190,13 @@ export async function getTrashPurgePreview(
 export async function purgeTrashOperation(
   userId: string,
   operationId: string,
-  confirmTitle: string,
+  confirmed: boolean,
   planId: string,
 ) {
   await withUserTransaction(userId, async (tx) => {
     const operation = await ownedOperation(tx, userId, operationId);
-    const root = rootOf(operation);
-    if (confirmTitle !== root.title)
-      throw new HttpError(
-        400,
-        "Digita il titolo esatto per eliminare definitivamente.",
-      );
+    if (confirmed !== true)
+      throw new HttpError(400, "Conferma l'eliminazione definitiva.");
     if (operationPlan(operation.items) !== planId)
       throw new HttpError(
         409,
@@ -234,20 +230,24 @@ export async function getEmptyTrashPreview(userId: string) {
     },
   });
   const items = operations.flatMap((operation) => operation.items);
+  const attachments = await prisma.attachment.count({
+    where: { userId, itemId: { in: items.map((item) => item.id) } },
+  });
   return {
     operations: operations.length,
     items: items.length,
+    attachments,
     planId: operationPlan(items),
   };
 }
 
 export async function emptyTrash(
   userId: string,
-  confirm: string,
+  confirmed: boolean,
   planId: string,
 ) {
-  if (confirm !== "SVUOTA CESTINO")
-    throw new HttpError(400, "Digita SVUOTA CESTINO per confermare.");
+  if (confirmed !== true)
+    throw new HttpError(400, "Conferma lo svuotamento del Cestino.");
   await withUserTransaction(userId, async (tx) => {
     const operations = await tx.trashOperation.findMany({
       where: { userId },

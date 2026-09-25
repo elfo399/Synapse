@@ -43,8 +43,6 @@ export function AdvancedDeletionDialog({
 
   const [preview, setPreview] = useState<Preview | null>(null);
 
-  const [confirmation, setConfirmation] = useState("");
-
   const [busy, setBusy] = useState(false);
 
   const [error, setError] = useState("");
@@ -59,7 +57,6 @@ export function AdvancedDeletionDialog({
       if (!active) return;
       setPreview(null);
       setError("");
-      setConfirmation("");
       api<{ preview: Preview }>(
         `/api/items/${item.id}/deletion-preview?includeContained=${includeContained}`,
       )
@@ -87,7 +84,7 @@ export function AdvancedDeletionDialog({
       await api(`/api/items/${item.id}`, {
         method: "DELETE",
         body: JSON.stringify({
-          confirmTitle: item.title,
+          confirmed: true,
           includeContained,
           planId: preview.planId,
         }),
@@ -170,16 +167,6 @@ export function AdvancedDeletionDialog({
         </section>
       )}
 
-      <label>
-        Digita <strong>{item.title}</strong> per confermare
-        <input
-          autoComplete="off"
-          value={confirmation}
-          onChange={(event) => setConfirmation(event.target.value)}
-          placeholder="Titolo esatto"
-        />
-      </label>
-
       {error && (
         <p className="form-error" role="alert">
           {error}
@@ -195,7 +182,7 @@ export function AdvancedDeletionDialog({
         </button>
         <button
           className="button button-danger"
-          disabled={busy || !preview || confirmation !== item.title}
+          disabled={busy || !preview}
           onClick={remove}
         >
           {busy ? (

@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+﻿import { randomUUID } from "node:crypto";
 import { mkdtemp, rm, readdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -105,13 +105,13 @@ describe("Private durable attachments and universal capture", () => {
     expect((await getItem(owner, item.id)).attachments).toHaveLength(1);
     await updateItem(owner, item.id, { archived: false });
     expect(await storage.exists(file.storageKey)).toBe(true);
-    const moved = await moveItemToTrash(owner, item.id, item.title);
+    const moved = await moveItemToTrash(owner, item.id, true);
     expect(await storage.exists(file.storageKey)).toBe(true);
     const preview = await getTrashPurgePreview(owner, moved.operationId);
     await purgeTrashOperation(
       owner,
       moved.operationId,
-      item.title,
+      true,
       preview.planId,
     );
     expect(await storage.exists(file.storageKey)).toBe(false);
@@ -150,7 +150,7 @@ describe("Private durable attachments and universal capture", () => {
     await deleteAttachment(owner, file.id);
     expect(await storage.exists(file.storageKey)).toBe(false);
     expect((await getItem(owner, item.id)).attachments).toHaveLength(2);
-    await moveItemToTrash(owner, item.id, item.title);
+    await moveItemToTrash(owner, item.id, true);
   });
   it("compensates DB failure and rejects bad files before creating items", async () => {
     await captureItem(owner, { title: "Existing" });
@@ -204,3 +204,4 @@ describe("Private durable attachments and universal capture", () => {
     ).toBeNull();
   });
 });
+

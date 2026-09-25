@@ -73,11 +73,11 @@ describe("item lifecycle with the real PostgreSQL database", () => {
     ).toBe(true);
     await updateItem(owner, capture.id, { archived: false });
     await expect(
-      moveItemToTrash(owner, capture.id, "wrong"),
+      moveItemToTrash(owner, capture.id, false),
     ).rejects.toMatchObject({
       status: 400,
     });
-    await moveItemToTrash(owner, capture.id, capture.title);
+    await moveItemToTrash(owner, capture.id, true);
     await expect(getItem(owner, capture.id)).rejects.toMatchObject({
       status: 404,
     });
@@ -123,7 +123,7 @@ describe("item lifecycle with the real PostgreSQL database", () => {
     expect(
       preview.retained.find((entry) => entry.id === sharedResource.id)?.reason,
     ).toContain("Shared parent");
-    await moveItemToTrash(owner, project.id, project.title, {
+    await moveItemToTrash(owner, project.id, true, {
       includeContained: true,
       planId: preview.planId,
     });
@@ -165,7 +165,7 @@ describe("item lifecycle with the real PostgreSQL database", () => {
     await expect(deleteRelation(owner, wikiOnly.id)).rejects.toMatchObject({
       status: 409,
     });
-    await moveItemToTrash(owner, target.id, "Renamed target");
+    await moveItemToTrash(owner, target.id, true);
     expect((await getItem(owner, source.id)).unresolvedWikilinks).toEqual([
       "Renamed target",
     ]);
@@ -211,7 +211,7 @@ describe("item lifecycle with the real PostgreSQL database", () => {
       updateItem(owner, privateItem.id, { title: "Intrusion" }),
     ).rejects.toMatchObject({ status: 404 });
     await expect(
-      moveItemToTrash(owner, privateItem.id, privateItem.title),
+      moveItemToTrash(owner, privateItem.id, true),
     ).rejects.toMatchObject({ status: 404 });
     await expect(
       createRelation(owner, {

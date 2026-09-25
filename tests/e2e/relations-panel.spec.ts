@@ -77,7 +77,7 @@ test("the connections panel shows only manual semantic links from the current it
     for (const item of [...created].reverse())
       await page.request.delete(`/api/items/${item.id}`, {
         headers: { origin },
-        data: { confirmTitle: item.title },
+        data: { confirmed: true },
       });
   }
 });

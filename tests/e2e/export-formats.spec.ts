@@ -128,7 +128,7 @@ test("export dialog lets the user choose a native or readable ZIP", async ({
   } finally {
     await page.request.delete(`/api/items/${item.id}`, {
       headers: { origin },
-      data: { confirmTitle: item.title },
+      data: { confirmed: true },
     });
   }
 });
@@ -257,7 +257,7 @@ test("native export reimports while the readable ZIP stays offline and linked", 
     for (const item of [...created].reverse()) {
       await page.request.delete(`/api/items/${item.id}`, {
         headers: { origin },
-        data: { confirmTitle: item.title },
+        data: { confirmed: true },
       });
     }
   }
@@ -429,7 +429,7 @@ test("readable export is an offline document with fitted media and resolved wiki
     for (const item of [...created].reverse()) {
       await page.request.delete(`/api/items/${item.id}`, {
         headers: { origin },
-        data: { confirmTitle: item.title },
+        data: { confirmed: true },
       });
     }
   }

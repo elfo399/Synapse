@@ -5,7 +5,9 @@ import {
   useEffect,
   useState,
   useSyncExternalStore,
+  useRef,
   type ReactNode,
+  type MouseEvent,
 } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -38,7 +40,7 @@ import { authClient } from "@/lib/auth-client";
 import type { ItemType } from "@/features/items/types";
 import { CaptureDialog } from "@/features/items/capture-dialog";
 import { SearchDialog } from "./search-dialog";
-import { WorkspaceContext } from "./workspace-context";
+import { WorkspaceContext, type NavigationGuard } from "./workspace-context";
 import { Modal } from "./ui";
 import "./workspace-shell.css";
 
@@ -126,6 +128,8 @@ export function WorkspaceShell({
   );
   const [toast, setToast] = useState("");
   const [signingOut, setSigningOut] = useState(false);
+  const navigationGuard = useRef<NavigationGuard | null>(null);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
   const compact = useSyncExternalStore(
     subscribeDensity,
     readDensity,
@@ -137,6 +141,48 @@ export function WorkspaceShell({
     [],
   );
   const notify = useCallback((message: string) => setToast(message), []);
+  const registerNavigationGuard = useCallback((guard: NavigationGuard | null) => {
+    navigationGuard.current = guard;
+  }, []);
+  const requestNavigation = useCallback(
+    (href: string) => {
+      if (href === pathname) return true;
+      if (navigationGuard.current?.isDirty()) {
+        setPendingNavigation(href);
+        return false;
+      }
+      router.push(href);
+      return true;
+    },
+    [pathname, router],
+  );
+  function guardInternalLink(
+    event: MouseEvent<HTMLAnchorElement>,
+    href: string,
+    closeMobile = false,
+  ) {
+    if (
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    )
+      return;
+    event.preventDefault();
+    requestNavigation(href);
+    if (closeMobile) setMobileOpen(false);
+  }
+  async function continueNavigation(action: "save" | "discard") {
+    const href = pendingNavigation;
+    const guard = navigationGuard.current;
+    if (!href || !guard) return;
+    const complete = action === "save" ? await guard.save() : await guard.discard();
+    if (!complete) return;
+    navigationGuard.current = null;
+    setPendingNavigation(null);
+    router.push(href);
+  }
   useEffect(() => {
     const keyboard = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
@@ -205,7 +251,7 @@ export function WorkspaceShell({
   }
   const navigationContent = (
     <>
-      <Link href="/" className="brand" onClick={() => setMobileOpen(false)}>
+      <Link href="/" className="brand" onClick={(event) => guardInternalLink(event, "/", true)}>
         <span className="brand-mark">
           <Network size={22} strokeWidth={1.65} />
         </span>
@@ -247,11 +293,11 @@ export function WorkspaceShell({
                   href={item.href}
                   key={item.href}
                   aria-current={pathname === item.href ? "page" : undefined}
-                  onClick={() => {
+                  onClick={(event) => {
                     if (!expandedGroups.includes(group.title)) {
                       setExpandedGroups((groups) => [...groups, group.title]);
                     }
-                    setMobileOpen(false);
+                    guardInternalLink(event, item.href, true);
                   }}
                 >
                   <item.icon size={16} strokeWidth={1.6} />
@@ -305,7 +351,14 @@ export function WorkspaceShell({
   );
   return (
     <WorkspaceContext.Provider
-      value={{ name, capture, search: () => setSearchOpen(true), notify }}
+      value={{
+        name,
+        capture,
+        search: () => setSearchOpen(true),
+        notify,
+        registerNavigationGuard,
+        requestNavigation,
+      }}
     >
       <a href="#main-content" className="skip-link">
         Vai al contenuto
@@ -378,6 +431,7 @@ export function WorkspaceShell({
           <Link
             href="/planner"
             aria-current={pathname === "/planner" ? "page" : undefined}
+            onClick={(event) => guardInternalLink(event, "/planner")}
           >
             <CalendarDays size={19} />
             <span>Piano</span>
@@ -385,6 +439,7 @@ export function WorkspaceShell({
           <Link
             href="/inbox"
             aria-current={pathname === "/inbox" ? "page" : undefined}
+            onClick={(event) => guardInternalLink(event, "/inbox")}
           >
             <Inbox size={19} />
             <span>Da organizzare</span>
@@ -417,6 +472,26 @@ export function WorkspaceShell({
         className="navigation-dialog"
       >
         {navigationContent}
+      </Modal>
+      <Modal
+        open={pendingNavigation !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingNavigation(null);
+        }}
+        title="Ci sono modifiche non salvate"
+        description="Salva le modifiche prima di cambiare pagina, oppure scartale."
+      >
+        <div className="dialog-footer">
+          <button className="button button-secondary" onClick={() => setPendingNavigation(null)}>
+            Rimani nella pagina
+          </button>
+          <button className="button button-secondary" onClick={() => void continueNavigation("discard")}>
+            Scarta e continua
+          </button>
+          <button className="button button-primary" onClick={() => void continueNavigation("save")}>
+            Salva e continua
+          </button>
+        </div>
       </Modal>
       <Modal
         open={preferencesOpen}

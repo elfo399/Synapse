@@ -27,8 +27,8 @@ export const DELETE = (request: Request, context: Context) =>
   route(async () => {
     const user = await requireUser(request);
     const input = z
-      .object({ confirmTitle: z.string().max(200) })
-      .extend({
+      .object({
+        confirmed: z.literal(true),
         includeContained: z.boolean().optional(),
         planId: z.string().length(64).optional(),
       })
@@ -37,7 +37,7 @@ export const DELETE = (request: Request, context: Context) =>
     const result = await moveItemToTrash(
       user.id,
       idSchema.parse((await context.params).id),
-      input.confirmTitle,
+      input.confirmed,
       { includeContained: input.includeContained, planId: input.planId },
     );
     return json({ success: true, ...result });
