@@ -20,6 +20,12 @@ Le idee arrivano mentre stai facendo altro: una frase da non perdere, un link da
 
 Synapse dà a ogni cosa un posto e ti aiuta a ritrovarla quando serve. È il tuo spazio personale per pensare meglio, tenere il filo e vedere crescere quello che impari.
 
+## Assistente AI locale
+
+Synapse usa Qwen eseguito localmente tramite Ollama. Per ogni messaggio Qwen decide se rispondere direttamente o usare strumenti protetti: ricerca nelle conoscenze dell'account, elenco di elementi, contesto di un progetto, relazioni, ora/data oppure ricerca Web con SearXNG. I risultati vengono verificati dal backend con il `userId` autenticato e poi Qwen genera la risposta finale in streaming.
+
+La ricerca Web riceve solo la domanda dell'utente: note, allegati, percorsi e altri dati recuperati da Synapse non lasciano l'installazione. Con il toggle Web disattivato nessuna richiesta viene inviata a SearXNG; le ricerche locali restano disponibili. La risposta finale, anche per ora/data e identità, viene generata da Qwen usando gli eventuali dati deterministici forniti dallo strumento.
+
 ## Tutto ciò che conta, a portata di mano
 
 | | Con Synapse puoi… |
