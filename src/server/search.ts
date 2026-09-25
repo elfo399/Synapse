@@ -34,7 +34,10 @@ export async function searchItems(userId: string, input: unknown) {
   const term = /^[\p{L}\p{N}_]+$/u.test(query.q)
     ? Prisma.sql`to_tsquery('simple', ${query.q + ":*"})`
     : Prisma.sql`websearch_to_tsquery('simple', ${query.q})`;
-  const filters = [Prisma.sql`i."userId" = ${userId}`];
+  const filters = [
+    Prisma.sql`i."userId" = ${userId}`,
+    Prisma.sql`i."deletedAt" IS NULL`,
+  ];
   if (query.type) filters.push(Prisma.sql`i.type::text = ${query.type}`);
   if (query.archive === "active")
     filters.push(Prisma.sql`i."archivedAt" IS NULL`);
@@ -60,7 +63,7 @@ export async function searchItems(userId: string, input: unknown) {
     { isolationLevel: "RepeatableRead" },
   );
   const items = await prisma.item.findMany({
-    where: { userId, id: { in: hits.map((hit) => hit.id) } },
+    where: { userId, deletedAt: null, id: { in: hits.map((hit) => hit.id) } },
     include: { tags: { include: { tag: true } } },
   });
   const byId = new Map(items.map((item) => [item.id, item]));

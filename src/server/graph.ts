@@ -25,7 +25,7 @@ export async function getGraph(
   if (
     query.focus &&
     !(await prisma.item.findFirst({
-      where: { id: query.focus, userId },
+      where: { id: query.focus, userId, deletedAt: null },
       select: { id: true },
     }))
   ) {
@@ -53,6 +53,8 @@ export async function getGraph(
       const links = await prisma.itemRelation.findMany({
         where: {
           userId,
+          source: { deletedAt: null },
+          target: { deletedAt: null },
           OR: [
             { sourceItemId: { in: frontier } },
             { targetItemId: { in: frontier } },
@@ -82,6 +84,7 @@ export async function getGraph(
   }
   const where: Prisma.ItemWhereInput = {
     userId,
+    deletedAt: null,
     ...(query.type && { type: query.type }),
     ...(query.archive !== "all" && {
       archivedAt: query.archive === "archived" ? { not: null } : null,

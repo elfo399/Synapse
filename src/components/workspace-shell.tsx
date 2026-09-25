@@ -11,6 +11,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Archive,
+  Trash2,
   Bot,
   Bookmark,
   Box,
@@ -67,6 +68,7 @@ const navigation = [
       { href: "/graph", label: "Grafo", icon: Network },
       { href: "/tags", label: "Etichette", icon: Hash },
       { href: "/archive", label: "Archivio", icon: Archive },
+      { href: "/trash", label: "Cestino", icon: Trash2 },
     ],
   },
   {
@@ -117,6 +119,7 @@ export function WorkspaceShell({
       .filter(
         (group) =>
           group.title === "Organizza" ||
+          group.title === "Esplora" ||
           group.items.some((item) => item.href === pathname),
       )
       .map((group) => group.title),
@@ -334,8 +337,8 @@ export function WorkspaceShell({
                 <strong>
                   {navigation
                     .flatMap((group) => group.items)
-                    .find((item) => item.href === pathname)
-                    ?.label || "Documento"}
+                    .find((item) => item.href === pathname)?.label ||
+                    "Documento"}
                 </strong>
               </span>
             </div>

@@ -132,7 +132,7 @@ async function indexOne(job: {
   itemVersion: number;
 }) {
   const item = (await prisma.item.findFirst({
-    where: { id: job.itemId, userId: job.userId },
+    where: { id: job.itemId, userId: job.userId, deletedAt: null },
     select: {
       id: true,
       userId: true,
@@ -248,7 +248,7 @@ export async function processEmbeddingJobs(limit = 1) {
 export async function queueMissingEmbeddings(rebuild = false) {
   if (rebuild) await prisma.itemEmbeddingChunk.deleteMany({});
   const items = await prisma.item.findMany({
-    where: { archivedAt: null, content: { not: "" } },
+    where: { archivedAt: null, deletedAt: null, content: { not: "" } },
     select: { id: true, userId: true, version: true },
   });
   await prisma.$transaction(
@@ -287,7 +287,7 @@ export async function semanticSearch(
   return prisma.$queryRaw<SemanticHit[]>(Prisma.sql`
     SELECT c."itemId" as "itemId", i."title", i."type"::text as "type", left(c."content", 240) as "excerpt", (1 - (c."embedding" <=> ${vector}::vector))::float as "rank"
     FROM "ItemEmbeddingChunk" c JOIN "Item" i ON i."id" = c."itemId" AND i."userId" = c."userId"
-    WHERE c."userId" = ${userId} AND i."archivedAt" IS NULL
+    WHERE c."userId" = ${userId} AND i."archivedAt" IS NULL AND i."deletedAt" IS NULL
     ORDER BY c."embedding" <=> ${vector}::vector
     LIMIT ${Math.min(Math.max(limit, 1), 8)}
   `);

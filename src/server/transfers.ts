@@ -72,7 +72,7 @@ function safeAssetName(id: string, name: string) {
 
 async function collectItemIds(userId: string, rootId: string) {
   const root = await prisma.item.findFirst({
-    where: { userId, id: rootId },
+    where: { userId, id: rootId, deletedAt: null },
     select: { id: true },
   });
   if (!root) throw new HttpError(404, "Elemento non trovato.");
@@ -80,7 +80,13 @@ async function collectItemIds(userId: string, rootId: string) {
   let frontier = [root.id];
   while (frontier.length) {
     const next = await prisma.itemRelation.findMany({
-      where: { userId, relationType: "PARENT", targetItemId: { in: frontier } },
+      where: {
+        userId,
+        relationType: "PARENT",
+        targetItemId: { in: frontier },
+        source: { deletedAt: null },
+        target: { deletedAt: null },
+      },
       select: { sourceItemId: true },
     });
     frontier = next
@@ -100,7 +106,7 @@ export async function exportArchive(
 ) {
   const ids = await collectItemIds(userId, rootId);
   const items = await prisma.item.findMany({
-    where: { userId, id: { in: ids } },
+    where: { userId, deletedAt: null, id: { in: ids } },
     include: {
       tags: { include: { tag: true } },
       resourceBlocks: { orderBy: [{ position: "asc" }, { createdAt: "asc" }] },
@@ -108,14 +114,18 @@ export async function exportArchive(
     },
   });
   const relations = await prisma.itemRelation.findMany({
-    where: { userId, sourceItemId: { in: ids }, targetItemId: { in: ids } },
+    where: {
+      userId,
+      sourceItemId: { in: ids },
+      targetItemId: { in: ids },
+      source: { deletedAt: null },
+      target: { deletedAt: null },
+    },
   });
   const records: ExportItem[] = items.map((item) => ({
     id: item.id,
     type:
-      item.type === "BOOKMARK"
-        ? "RESOURCE"
-        : (item.type as ExportItem["type"]),
+      item.type === "BOOKMARK" ? "RESOURCE" : (item.type as ExportItem["type"]),
     title: item.title,
     content: item.content,
     status: item.status,
@@ -214,12 +224,11 @@ async function uniqueTitle(
         ? base
         : `${base.slice(0, Math.max(1, 195 - String(suffix).length))} (${suffix})`;
     if (
-      !(await tx.item.findUnique({
+      !(await tx.item.findFirst({
         where: {
-          userId_titleNormalized: {
-            userId,
-            titleNormalized: normalizeIdentity(candidate),
-          },
+          userId,
+          titleNormalized: normalizeIdentity(candidate),
+          deletedAt: null,
         },
         select: { id: true },
       }))
@@ -274,7 +283,9 @@ export async function importArchive(
   // NOTE records. They are the same persisted Item and are imported as the
   // current RESOURCE type without duplicating their blocks or attachments.
   const items = archiveJson<unknown[]>(files, "items.json").map((item) =>
-    item && typeof item === "object" && (item as { type?: unknown }).type === "NOTE"
+    item &&
+    typeof item === "object" &&
+    (item as { type?: unknown }).type === "NOTE"
       ? { ...(item as Record<string, unknown>), type: "RESOURCE" }
       : item,
   );
@@ -283,7 +294,7 @@ export async function importArchive(
     throw new HttpError(400, "Gli elementi dell'archivio non sono validi.");
   if (targetId) {
     const target = await prisma.item.findFirst({
-      where: { userId, id: targetId },
+      where: { userId, id: targetId, deletedAt: null },
       select: { id: true, type: true },
     });
     if (!target || !["AREA", "PROJECT"].includes(target.type))

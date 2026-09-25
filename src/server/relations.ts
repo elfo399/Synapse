@@ -20,7 +20,7 @@ export async function validateParent(
   targetItemId: string,
 ): Promise<void> {
   const source = await tx.item.findFirst({
-    where: { userId, id: sourceItemId },
+    where: { userId, id: sourceItemId, deletedAt: null },
     select: { type: true },
   });
   if (!source)
@@ -28,7 +28,7 @@ export async function validateParent(
   if (sourceItemId === targetItemId)
     throw new HttpError(400, "Un elemento non può contenere se stesso.");
   const target = await tx.item.findFirst({
-    where: { userId, id: targetItemId },
+    where: { userId, id: targetItemId, deletedAt: null },
     select: { type: true },
   });
   if (target && !allowedParents[source.type].includes(target.type))
@@ -131,7 +131,11 @@ export async function createRelation(
   return withUserTransaction(userId, async (tx) => {
     if (
       (await tx.item.count({
-        where: { userId, id: { in: [input.sourceItemId, input.targetItemId] } },
+        where: {
+          userId,
+          deletedAt: null,
+          id: { in: [input.sourceItemId, input.targetItemId] },
+        },
       })) !== 2
     )
       throw new HttpError(404, "L’elemento collegato non esiste.");
@@ -165,7 +169,14 @@ export async function createRelation(
 
 export async function setPrimaryParent(userId: string, id: string) {
   return withUserTransaction(userId, async (tx) => {
-    const relation = await tx.itemRelation.findFirst({ where: { userId, id } });
+    const relation = await tx.itemRelation.findFirst({
+      where: {
+        userId,
+        id,
+        source: { deletedAt: null },
+        target: { deletedAt: null },
+      },
+    });
     if (!relation || relation.relationType !== "PARENT")
       throw new HttpError(404, "Contenitore non trovato.");
     await tx.itemRelation.updateMany({
@@ -190,7 +201,14 @@ export async function deleteRelation(
   id: string,
 ): Promise<void> {
   await withUserTransaction(userId, async (tx) => {
-    const relation = await tx.itemRelation.findFirst({ where: { userId, id } });
+    const relation = await tx.itemRelation.findFirst({
+      where: {
+        userId,
+        id,
+        source: { deletedAt: null },
+        target: { deletedAt: null },
+      },
+    });
     if (!relation) throw new HttpError(404, "Relazione non trovata.");
     if (relation.wikilink && !relation.manual)
       throw new HttpError(
@@ -207,6 +225,8 @@ export async function listRelations(userId: string, itemId?: string) {
   const relations = await prisma.itemRelation.findMany({
     where: {
       userId,
+      source: { deletedAt: null },
+      target: { deletedAt: null },
       ...(itemId
         ? { OR: [{ sourceItemId: itemId }, { targetItemId: itemId }] }
         : {}),

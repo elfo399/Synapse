@@ -153,8 +153,10 @@ describe("PostgreSQL search and bounded graph", () => {
       ),
     ).toEqual([targetId]);
     expect(
-      (await getGraph(userId, { type: "RESOURCE" })).nodes.map((node) => node.id),
-    ).toEqual([sourceId]);
+      (await getGraph(userId, { type: "RESOURCE" })).nodes
+        .map((node) => node.id)
+        .sort(),
+    ).toEqual([sourceId, targetId].sort());
     expect(
       (await getGraph(userId, { parent: projectId })).nodes
         .map((node) => node.id)

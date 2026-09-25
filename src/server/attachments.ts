@@ -196,12 +196,11 @@ export async function captureItem(
       if (!input.title) {
         let suffix = 2;
         while (
-          await tx.item.findUnique({
+          await tx.item.findFirst({
             where: {
-              userId_titleNormalized: {
-                userId,
-                titleNormalized: normalizeIdentity(title),
-              },
+              userId,
+              titleNormalized: normalizeIdentity(title),
+              deletedAt: null,
             },
             select: { id: true },
           })
@@ -243,7 +242,7 @@ export async function addAttachments(
 ) {
   if (
     !(await prisma.item.findFirst({
-      where: { userId, id: itemId },
+      where: { userId, id: itemId, deletedAt: null },
       select: { id: true },
     }))
   )
@@ -252,7 +251,11 @@ export async function addAttachments(
   const prepared = await storeUploads(files, storage);
   try {
     return await withUserTransaction(userId, async (tx) => {
-      if (!(await tx.item.findFirst({ where: { userId, id: itemId } })))
+      if (
+        !(await tx.item.findFirst({
+          where: { userId, id: itemId, deletedAt: null },
+        }))
+      )
         throw new HttpError(404, "Elemento non trovato.");
       if (
         (await tx.attachment.count({ where: { userId, itemId } })) +
@@ -278,7 +281,9 @@ export async function addAttachments(
 }
 
 export async function getAttachment(userId: string, id: string) {
-  const file = await prisma.attachment.findFirst({ where: { userId, id } });
+  const file = await prisma.attachment.findFirst({
+    where: { userId, id, item: { deletedAt: null } },
+  });
   if (!file) throw new HttpError(404, "Allegato non trovato.");
   return file;
 }
@@ -289,7 +294,9 @@ export async function deleteAttachment(
   storage: StorageProvider = attachmentStorage(),
 ) {
   await withUserTransaction(userId, async (tx) => {
-    const file = await tx.attachment.findFirst({ where: { userId, id } });
+    const file = await tx.attachment.findFirst({
+      where: { userId, id, item: { deletedAt: null } },
+    });
     if (!file) throw new HttpError(404, "Allegato non trovato.");
     await tx.attachmentDeletion.create({
       data: { storageKey: file.storageKey },

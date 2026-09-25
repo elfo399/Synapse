@@ -24,6 +24,7 @@ export async function syncWikiLinks(
           userId,
           titleNormalized: { in: links.map((link) => link.normalized) },
           id: { not: sourceItemId },
+          deletedAt: null,
         },
         select: { id: true },
       })

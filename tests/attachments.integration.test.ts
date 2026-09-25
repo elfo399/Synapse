@@ -11,7 +11,8 @@ import {
   getAttachment,
   drainAttachmentDeletions,
 } from "@/server/attachments";
-import { deleteItem, getItem, updateItem } from "@/server/items";
+import { getItem, moveItemToTrash, updateItem } from "@/server/items";
+import { getTrashPurgePreview, purgeTrashOperation } from "@/server/trash";
 import { LocalFilesystemStorage, type StorageProvider } from "@/server/storage";
 
 const png = Buffer.from(
@@ -104,7 +105,15 @@ describe("Private durable attachments and universal capture", () => {
     expect((await getItem(owner, item.id)).attachments).toHaveLength(1);
     await updateItem(owner, item.id, { archived: false });
     expect(await storage.exists(file.storageKey)).toBe(true);
-    await deleteItem(owner, item.id, item.title);
+    const moved = await moveItemToTrash(owner, item.id, item.title);
+    expect(await storage.exists(file.storageKey)).toBe(true);
+    const preview = await getTrashPurgePreview(owner, moved.operationId);
+    await purgeTrashOperation(
+      owner,
+      moved.operationId,
+      item.title,
+      preview.planId,
+    );
     expect(await storage.exists(file.storageKey)).toBe(false);
     await expect(getAttachment(owner, attachment.id)).rejects.toMatchObject({
       status: 404,
@@ -141,7 +150,7 @@ describe("Private durable attachments and universal capture", () => {
     await deleteAttachment(owner, file.id);
     expect(await storage.exists(file.storageKey)).toBe(false);
     expect((await getItem(owner, item.id)).attachments).toHaveLength(2);
-    await deleteItem(owner, item.id, item.title);
+    await moveItemToTrash(owner, item.id, item.title);
   });
   it("compensates DB failure and rejects bad files before creating items", async () => {
     await captureItem(owner, { title: "Existing" });

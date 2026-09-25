@@ -4,7 +4,7 @@ import { itemInclude, serializeItem } from "./serialization";
 export async function getDashboard(userId: string) {
   const tomorrow = new Date();
   tomorrow.setUTCHours(24, 0, 0, 0);
-  const active = { userId, archivedAt: null };
+  const active = { userId, archivedAt: null, deletedAt: null };
   const openStatuses = ["TODO", "IN_PROGRESS"] as const;
   const [
     inbox,

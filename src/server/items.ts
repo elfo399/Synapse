@@ -25,10 +25,6 @@ import {
   resolveNewTitle,
   syncWikiLinks,
 } from "./wikilinks";
-import {
-  queueAttachmentDeletion,
-  drainAttachmentDeletions,
-} from "./attachments";
 import { queueItemEmbedding } from "./ai-index";
 
 async function setTags(
@@ -54,11 +50,19 @@ export async function getItem(
   db: Prisma.TransactionClient = prisma,
 ): Promise<ItemDetail> {
   const item = await db.item.findFirst({
-    where: { userId, id },
+    where: { userId, id, deletedAt: null },
     include: {
       ...itemInclude,
-      outgoing: { include: relationInclude, orderBy: { createdAt: "desc" } },
-      incoming: { include: relationInclude, orderBy: { createdAt: "desc" } },
+      outgoing: {
+        where: { target: { deletedAt: null } },
+        include: relationInclude,
+        orderBy: { createdAt: "desc" },
+      },
+      incoming: {
+        where: { source: { deletedAt: null } },
+        include: relationInclude,
+        orderBy: { createdAt: "desc" },
+      },
       wikiReferences: true,
       resourceBlocks: {
         orderBy: [{ position: "asc" }, { createdAt: "asc" }],
@@ -70,6 +74,7 @@ export async function getItem(
   const existingTitles = await db.item.findMany({
     where: {
       userId,
+      deletedAt: null,
       titleNormalized: {
         in: item.wikiReferences.map((link) => link.titleNormalized),
       },
@@ -114,6 +119,7 @@ export async function listItems(
   const query = itemQuerySchema.parse(input);
   const where: Prisma.ItemWhereInput = {
     userId,
+    deletedAt: null,
     ...(query.type ? { type: query.type } : {}),
     ...(query.status ? { status: query.status } : {}),
     ...(query.inbox ? { inbox: query.inbox === "true" } : {}),
@@ -230,7 +236,9 @@ export async function updateItem(
 ): Promise<ItemDetail> {
   const input = itemPatchSchema.parse(rawInput);
   return withUserTransaction(userId, async (tx) => {
-    const previous = await tx.item.findFirst({ where: { userId, id } });
+    const previous = await tx.item.findFirst({
+      where: { userId, id, deletedAt: null },
+    });
     if (!previous) throw new HttpError(404, "Elemento non trovato.");
     if (input.version !== undefined && input.version !== previous.version)
       throw new HttpError(
@@ -335,94 +343,214 @@ async function deletionPreviewInTransaction(
   includeContained: boolean,
 ): Promise<DeletionPreview> {
   const [root, items, parents] = await Promise.all([
-    tx.item.findFirst({ where: { userId, id: rootId }, select: { id: true, title: true, type: true, version: true, archivedAt: true } }),
-    tx.item.findMany({ where: { userId }, select: { id: true, title: true, type: true, version: true, archivedAt: true } }),
-    tx.itemRelation.findMany({ where: { userId, relationType: "PARENT" }, select: { id: true, sourceItemId: true, targetItemId: true } }),
+    tx.item.findFirst({
+      where: { userId, id: rootId, deletedAt: null },
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        version: true,
+        archivedAt: true,
+      },
+    }),
+    tx.item.findMany({
+      where: { userId, deletedAt: null },
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        version: true,
+        archivedAt: true,
+      },
+    }),
+    tx.itemRelation.findMany({
+      where: {
+        userId,
+        relationType: "PARENT",
+        source: { deletedAt: null },
+        target: { deletedAt: null },
+      },
+      select: { id: true, sourceItemId: true, targetItemId: true },
+    }),
   ]);
   if (!root) throw new HttpError(404, "Elemento non trovato.");
   const itemById = new Map(items.map((item) => [item.id, item]));
   const children = new Map<string, string[]>();
   const itemParents = new Map<string, string[]>();
   for (const relation of parents) {
-    children.set(relation.targetItemId, [...(children.get(relation.targetItemId) ?? []), relation.sourceItemId]);
-    itemParents.set(relation.sourceItemId, [...(itemParents.get(relation.sourceItemId) ?? []), relation.targetItemId]);
+    children.set(relation.targetItemId, [
+      ...(children.get(relation.targetItemId) ?? []),
+      relation.sourceItemId,
+    ]);
+    itemParents.set(relation.sourceItemId, [
+      ...(itemParents.get(relation.sourceItemId) ?? []),
+      relation.targetItemId,
+    ]);
   }
   const reachable = new Set<string>([rootId]);
   if (includeContained) {
     const pending = [rootId];
     while (pending.length) {
-      for (const childId of children.get(pending.pop()!) ?? []) if (!reachable.has(childId)) {
-        reachable.add(childId); pending.push(childId);
-      }
+      for (const childId of children.get(pending.pop()!) ?? [])
+        if (!reachable.has(childId)) {
+          reachable.add(childId);
+          pending.push(childId);
+        }
     }
-  } else for (const childId of children.get(rootId) ?? []) reachable.add(childId);
+  } else
+    for (const childId of children.get(rootId) ?? []) reachable.add(childId);
   const deleting = new Set<string>([rootId]);
   if (includeContained) {
     let changed = true;
     while (changed) {
       changed = false;
-      for (const id of reachable) if (!deleting.has(id) && (itemParents.get(id) ?? []).every((parentId) => deleting.has(parentId))) {
-        deleting.add(id); changed = true;
-      }
+      for (const id of reachable)
+        if (
+          !deleting.has(id) &&
+          (itemParents.get(id) ?? []).every((parentId) =>
+            deleting.has(parentId),
+          )
+        ) {
+          deleting.add(id);
+          changed = true;
+        }
     }
   }
-  const deletedItems = [...deleting].map((id) => itemById.get(id)!).filter(Boolean);
+  const deletedItems = [...deleting]
+    .map((id) => itemById.get(id)!)
+    .filter(Boolean);
   const retained = [...reachable]
     .filter((id) => !deleting.has(id))
     .map((id) => {
       const item = itemById.get(id)!;
-      const keptParents = (itemParents.get(id) ?? []).filter((parentId) => !deleting.has(parentId)).map((parentId) => itemById.get(parentId)?.title).filter(Boolean);
-      return { id, title: item.title, type: item.type, reason: includeContained ? `Conservato: appartiene anche a ${keptParents.join(", ") || "un altro contenitore"}.` : "Conservato: l'eliminazione del contenitore non elimina il contenuto." };
+      const keptParents = (itemParents.get(id) ?? [])
+        .filter((parentId) => !deleting.has(parentId))
+        .map((parentId) => itemById.get(parentId)?.title)
+        .filter(Boolean);
+      return {
+        id,
+        title: item.title,
+        type: item.type,
+        reason: includeContained
+          ? `Conservato: appartiene anche a ${keptParents.join(", ") || "un altro contenitore"}.`
+          : "Conservato: l'eliminazione del contenitore non elimina il contenuto.",
+      };
     });
   const deleteIds = deletedItems.map((item) => item.id);
   const [attachments, timeBlocks, relationCount] = await Promise.all([
     tx.attachment.count({ where: { userId, itemId: { in: deleteIds } } }),
     tx.timeBlock.count({ where: { userId, itemId: { in: deleteIds } } }),
-    tx.itemRelation.count({ where: { userId, OR: [{ sourceItemId: { in: deleteIds } }, { targetItemId: { in: deleteIds } }] } }),
+    tx.itemRelation.count({
+      where: {
+        userId,
+        OR: [
+          { sourceItemId: { in: deleteIds } },
+          { targetItemId: { in: deleteIds } },
+        ],
+      },
+    }),
   ]);
   const counts: Record<string, number> = {};
-  for (const item of deletedItems) counts[item.type] = (counts[item.type] ?? 0) + 1;
-  const fingerprint = JSON.stringify({ rootId, includeContained, deleted: deletedItems.map((item) => [item.id, item.version]).sort(), retained: retained.map((item) => item.id).sort(), parents: parents.filter((relation) => reachable.has(relation.sourceItemId) || relation.targetItemId === rootId).map((relation) => [relation.id, relation.sourceItemId, relation.targetItemId]).sort() });
-  return { planId: createHash("sha256").update(fingerprint).digest("hex"), root: { id: root.id, title: root.title, type: root.type }, includeContained, delete: deletedItems.map((item) => ({ id: item.id, title: item.title, type: item.type, archived: Boolean(item.archivedAt) })), retained, counts, archived: deletedItems.filter((item) => item.archivedAt).length, attachments, relations: relationCount, plannerBlocks: timeBlocks };
+  for (const item of deletedItems)
+    counts[item.type] = (counts[item.type] ?? 0) + 1;
+  const fingerprint = JSON.stringify({
+    rootId,
+    includeContained,
+    deleted: deletedItems.map((item) => [item.id, item.version]).sort(),
+    retained: retained.map((item) => item.id).sort(),
+    parents: parents
+      .filter(
+        (relation) =>
+          reachable.has(relation.sourceItemId) ||
+          relation.targetItemId === rootId,
+      )
+      .map((relation) => [
+        relation.id,
+        relation.sourceItemId,
+        relation.targetItemId,
+      ])
+      .sort(),
+  });
+  return {
+    planId: createHash("sha256").update(fingerprint).digest("hex"),
+    root: { id: root.id, title: root.title, type: root.type },
+    includeContained,
+    delete: deletedItems.map((item) => ({
+      id: item.id,
+      title: item.title,
+      type: item.type,
+      archived: Boolean(item.archivedAt),
+    })),
+    retained,
+    counts,
+    archived: deletedItems.filter((item) => item.archivedAt).length,
+    attachments,
+    relations: relationCount,
+    plannerBlocks: timeBlocks,
+  };
 }
 
-export async function getDeletionPreview(userId: string, id: string, includeContained = false) {
-  return withUserTransaction(userId, (tx) => deletionPreviewInTransaction(tx, userId, id, includeContained));
+export async function getDeletionPreview(
+  userId: string,
+  id: string,
+  includeContained = false,
+) {
+  return withUserTransaction(userId, (tx) =>
+    deletionPreviewInTransaction(tx, userId, id, includeContained),
+  );
 }
 
-export async function deleteItem(
+/** Moves active items to the recoverable trash. No Item, attachment or relation is deleted here. */
+export async function moveItemToTrash(
   userId: string,
   id: string,
   confirmTitle: string,
   options: { includeContained?: boolean; planId?: string } = {},
-): Promise<void> {
-  await withUserTransaction(userId, async (tx) => {
+) {
+  return withUserTransaction(userId, async (tx) => {
     const item = await tx.item.findFirst({
-      where: { userId, id },
-      select: { title: true, type: true },
+      where: { userId, id, deletedAt: null },
+      select: { id: true, title: true, type: true },
     });
     if (!item) throw new HttpError(404, "Elemento non trovato.");
-    if (confirmTitle !== item.title)
+    if (item.title !== confirmTitle)
       throw new HttpError(
         400,
-        "Digita il titolo esatto dell’elemento per eliminarlo definitivamente.",
+        "Digita il titolo esatto dell’elemento per spostarlo nel Cestino.",
       );
     const advanced = item.type === "AREA" || item.type === "PROJECT";
     const preview = advanced
-      ? await deletionPreviewInTransaction(tx, userId, id, Boolean(options.includeContained))
+      ? await deletionPreviewInTransaction(
+          tx,
+          userId,
+          id,
+          Boolean(options.includeContained),
+        )
       : null;
-    if (options.planId && preview && options.planId !== preview.planId)
-      throw new HttpError(409, "Il piano di eliminazione non è più aggiornato. Controlla di nuovo gli elementi coinvolti.");
-    if (options.includeContained && advanced && !options.planId)
-      throw new HttpError(400, "Apri prima l'anteprima di eliminazione aggiornata.");
+    if (advanced && !options.planId)
+      throw new HttpError(400, "Apri prima l?anteprima aggiornata.");
+    if (preview && options.planId !== preview.planId)
+      throw new HttpError(
+        409,
+        "Il piano di eliminazione non ? pi? aggiornato. Controlla di nuovo gli elementi coinvolti.",
+      );
     const ids = preview ? preview.delete.map((entry) => entry.id) : [id];
-    for (const itemId of ids) await queueAttachmentDeletion(tx, userId, itemId);
-    await tx.aiConversation.updateMany({ where: { userId, activeProjectId: { in: ids } }, data: { activeProjectId: null } });
-    await tx.item.deleteMany({ where: { userId, id: { in: ids } } });
-    const keptChildren = await tx.itemRelation.findMany({ where: { userId, relationType: "PARENT", sourceItemId: { notIn: ids } }, select: { id: true, sourceItemId: true, isPrimary: true } });
-    const primaryByChild = new Map<string, boolean>();
-    for (const relation of keptChildren) primaryByChild.set(relation.sourceItemId, (primaryByChild.get(relation.sourceItemId) ?? false) || relation.isPrimary);
-    for (const relation of keptChildren) if (!primaryByChild.get(relation.sourceItemId)) { await tx.itemRelation.update({ where: { id: relation.id }, data: { isPrimary: true } }); primaryByChild.set(relation.sourceItemId, true); }
+    const operation = await tx.trashOperation.create({
+      data: {
+        userId,
+        rootItemId: id,
+        includeContained: Boolean(options.includeContained),
+      },
+    });
+    const deletedAt = new Date();
+    await tx.item.updateMany({
+      where: { userId, id: { in: ids }, deletedAt: null },
+      data: { deletedAt, trashOperationId: operation.id },
+    });
+    await tx.aiConversation.updateMany({
+      where: { userId, activeProjectId: { in: ids } },
+      data: { activeProjectId: null },
+    });
+    return { operationId: operation.id, count: ids.length };
   });
-  await drainAttachmentDeletions();
 }

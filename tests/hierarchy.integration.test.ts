@@ -1,7 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
-import { createItem, deleteItem, getItem, updateItem } from "@/server/items";
+import {
+  createItem,
+  getDeletionPreview,
+  getItem,
+  moveItemToTrash,
+  updateItem,
+} from "@/server/items";
 import { createRelation, setPrimaryParent } from "@/server/relations";
 
 describe("area, project and resource hierarchy", () => {
@@ -147,7 +153,10 @@ describe("area, project and resource hierarchy", () => {
         relationType: "PARENT",
       }),
     ).rejects.toMatchObject({ status: 400 });
-    await deleteItem(userId, area.id, area.title);
+    const preview = await getDeletionPreview(userId, area.id, false);
+    await moveItemToTrash(userId, area.id, area.title, {
+      planId: preview.planId,
+    });
     expect((await getItem(userId, project.id)).id).toBe(project.id);
     expect((await getItem(userId, resource.id)).id).toBe(resource.id);
     await expect(

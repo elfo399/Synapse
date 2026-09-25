@@ -28,14 +28,14 @@ La ricerca Web riceve solo la domanda dell'utente: note, allegati, percorsi e al
 
 ## Tutto ciò che conta, a portata di mano
 
-| | Con Synapse puoi… |
-| --- | --- |
-| ✦ | **Catturare un’idea subito**: scrivi, incolla un link, aggiungi immagini, documenti o un memo vocale. |
-| ◇ | **Costruire note che restano utili**: titoli, elenchi, collegamenti e contenuti ricchi per dare forma al tuo pensiero. |
-| ✓ | **Sapere cosa fare oggi**: attività, scadenze e Planner tengono in vista il prossimo passo. |
-| ◈ | **Portare avanti i progetti**: obiettivi, materiali e azioni restano insieme, senza perdere il contesto. |
-| ⌕ | **Ritrovare quello che sai**: cerca tra note, etichette, progetti e risorse in pochi istanti. |
-| ✺ | **Scoprire connessioni**: esplora le relazioni tra le tue idee in un grafo 2D o 3D. |
+|     | Con Synapse puoi…                                                                                                      |
+| --- | ---------------------------------------------------------------------------------------------------------------------- |
+| ✦   | **Catturare un’idea subito**: scrivi, incolla un link, aggiungi immagini, documenti o un memo vocale.                  |
+| ◇   | **Costruire note che restano utili**: titoli, elenchi, collegamenti e contenuti ricchi per dare forma al tuo pensiero. |
+| ✓   | **Sapere cosa fare oggi**: attività, scadenze e Planner tengono in vista il prossimo passo.                            |
+| ◈   | **Portare avanti i progetti**: obiettivi, materiali e azioni restano insieme, senza perdere il contesto.               |
+| ⌕   | **Ritrovare quello che sai**: cerca tra note, etichette, progetti e risorse in pochi istanti.                          |
+| ✺   | **Scoprire connessioni**: esplora le relazioni tra le tue idee in un grafo 2D o 3D.                                    |
 
 ## Parti da un pensiero. Arriva dove vuoi.
 
@@ -71,13 +71,13 @@ Le tue conoscenze restano nel tuo spazio personale: Synapse è pensato per chi v
 
 ## Per il tuo modo di vivere e lavorare
 
-| Se vuoi… | Synapse ti aiuta a… |
-| --- | --- |
-| Studiare un argomento | Mettere insieme appunti, fonti, domande e collegamenti. |
-| Realizzare un progetto | Tenere vicini obiettivi, materiali e prossime azioni. |
-| Ricordare ciò che impari | Costruire una raccolta personale di idee e soluzioni. |
+| Se vuoi…                    | Synapse ti aiuta a…                                       |
+| --------------------------- | --------------------------------------------------------- |
+| Studiare un argomento       | Mettere insieme appunti, fonti, domande e collegamenti.   |
+| Realizzare un progetto      | Tenere vicini obiettivi, materiali e prossime azioni.     |
+| Ricordare ciò che impari    | Costruire una raccolta personale di idee e soluzioni.     |
 | Organizzare la quotidianità | Pianificare impegni, letture, viaggi e piccoli obiettivi. |
-| Fare spazio nella testa | Salvare ora e rielaborare quando hai il momento giusto. |
+| Fare spazio nella testa     | Salvare ora e rielaborare quando hai il momento giusto.   |
 
 ## Le tue raccolte, anche fuori da Synapse
 
@@ -98,6 +98,10 @@ un'altra Area o Progetto, **Importa** ricrea tutto nel posto corretto.
 ![Una nota Synapse con testo, contenuti e collegamenti](docs/screenshots/note.png)
 
 </details>
+
+## Cestino e Archivio
+
+L?**Archivio** mette da parte ci? che vuoi conservare fuori dallo spazio attivo. Il **Cestino** ? diverso: quando sposti un elemento nel Cestino, Synapse conserva titolo, contenuto, allegati, tag e collegamenti per permetterti di ripristinarlo. Solo dalla pagina Cestino puoi scegliere **Elimina definitivamente** dopo una conferma esplicita.
 
 ## Il tuo spazio, il tuo ritmo
 

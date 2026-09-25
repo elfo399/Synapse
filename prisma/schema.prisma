@@ -102,6 +102,7 @@ model User {
   aiConversations AiConversation[]
   embeddingChunks ItemEmbeddingChunk[]
   embeddingJobs AiEmbeddingJob[]
+  trashOperations TrashOperation[]
 }
 
 model AiConversation {
@@ -197,6 +198,9 @@ model Item {
   dueAt DateTime?
   completedAt DateTime?
   archivedAt DateTime?
+  deletedAt DateTime?
+  trashOperationId String?
+  trashOperation TrashOperation? @relation(fields: [trashOperationId], references: [id], onDelete: SetNull)
   version Int @default(1)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -211,11 +215,25 @@ model Item {
   embeddingChunks ItemEmbeddingChunk[]
   embeddingJobs AiEmbeddingJob[]
   @@unique([userId, id])
-  @@unique([userId, titleNormalized])
+  @@index([userId, titleNormalized])
   @@index([userId, archivedAt, updatedAt(sort: Desc)])
+  @@index([userId, deletedAt, updatedAt(sort: Desc)])
+  @@index([userId, trashOperationId])
   @@index([userId, type, archivedAt, status])
   @@index([userId, inbox, archivedAt])
   @@index([userId, dueAt])
+}
+
+model TrashOperation {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rootItemId String
+  includeContained Boolean @default(false)
+  deletedAt DateTime @default(now())
+  items Item[]
+  @@index([userId, deletedAt(sort: Desc)])
+  @@index([userId, rootItemId])
 }
 
 model ItemEmbeddingChunk {

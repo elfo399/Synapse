@@ -3,8 +3,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "../src/lib/db";
 import {
   createItem,
-  deleteItem,
   getItem,
+  moveItemToTrash,
   getDeletionPreview,
   listItems,
   updateItem,
@@ -72,30 +72,67 @@ describe("item lifecycle with the real PostgreSQL database", () => {
       ),
     ).toBe(true);
     await updateItem(owner, capture.id, { archived: false });
-    await expect(deleteItem(owner, capture.id, "wrong")).rejects.toMatchObject({
+    await expect(
+      moveItemToTrash(owner, capture.id, "wrong"),
+    ).rejects.toMatchObject({
       status: 400,
     });
-    await deleteItem(owner, capture.id, capture.title);
+    await moveItemToTrash(owner, capture.id, capture.title);
     await expect(getItem(owner, capture.id)).rejects.toMatchObject({
       status: 404,
     });
     expect(
       await prisma.itemRelation.count({ where: { sourceItemId: capture.id } }),
-    ).toBe(0);
+    ).toBe(1);
   });
 
   it("previews contained deletion without deleting shared resources", async () => {
-    const area = await createItem(owner, { title: "Deletion area", type: "AREA", inbox: false });
-    const otherArea = await createItem(owner, { title: "Shared parent", type: "AREA", inbox: false });
-    const project = await createItem(owner, { title: "Deletion project", type: "PROJECT", parentIds: [area.id], inbox: false });
-    const privateResource = await createItem(owner, { title: "Private resource", type: "RESOURCE", parentIds: [project.id], inbox: false });
-    const sharedResource = await createItem(owner, { title: "Shared resource", type: "RESOURCE", parentIds: [project.id, otherArea.id], primaryParentId: project.id, inbox: false });
+    const area = await createItem(owner, {
+      title: "Deletion area",
+      type: "AREA",
+      inbox: false,
+    });
+    const otherArea = await createItem(owner, {
+      title: "Shared parent",
+      type: "AREA",
+      inbox: false,
+    });
+    const project = await createItem(owner, {
+      title: "Deletion project",
+      type: "PROJECT",
+      parentIds: [area.id],
+      inbox: false,
+    });
+    const privateResource = await createItem(owner, {
+      title: "Private resource",
+      type: "RESOURCE",
+      parentIds: [project.id],
+      inbox: false,
+    });
+    const sharedResource = await createItem(owner, {
+      title: "Shared resource",
+      type: "RESOURCE",
+      parentIds: [project.id, otherArea.id],
+      primaryParentId: project.id,
+      inbox: false,
+    });
     const preview = await getDeletionPreview(owner, project.id, true);
-    expect(preview.delete.map((entry) => entry.id)).toEqual(expect.arrayContaining([project.id, privateResource.id]));
-    expect(preview.retained.find((entry) => entry.id === sharedResource.id)?.reason).toContain("Shared parent");
-    await deleteItem(owner, project.id, project.title, { includeContained: true, planId: preview.planId });
-    await expect(getItem(owner, privateResource.id)).rejects.toMatchObject({ status: 404 });
-    expect((await getItem(owner, sharedResource.id)).id).toBe(sharedResource.id);
+    expect(preview.delete.map((entry) => entry.id)).toEqual(
+      expect.arrayContaining([project.id, privateResource.id]),
+    );
+    expect(
+      preview.retained.find((entry) => entry.id === sharedResource.id)?.reason,
+    ).toContain("Shared parent");
+    await moveItemToTrash(owner, project.id, project.title, {
+      includeContained: true,
+      planId: preview.planId,
+    });
+    await expect(getItem(owner, privateResource.id)).rejects.toMatchObject({
+      status: 404,
+    });
+    expect((await getItem(owner, sharedResource.id)).id).toBe(
+      sharedResource.id,
+    );
   });
 
   it("maintains backlinks, manual provenance, renames, and late target creation", async () => {
@@ -128,7 +165,7 @@ describe("item lifecycle with the real PostgreSQL database", () => {
     await expect(deleteRelation(owner, wikiOnly.id)).rejects.toMatchObject({
       status: 409,
     });
-    await deleteItem(owner, target.id, "Renamed target");
+    await moveItemToTrash(owner, target.id, "Renamed target");
     expect((await getItem(owner, source.id)).unresolvedWikilinks).toEqual([
       "Renamed target",
     ]);
@@ -174,7 +211,7 @@ describe("item lifecycle with the real PostgreSQL database", () => {
       updateItem(owner, privateItem.id, { title: "Intrusion" }),
     ).rejects.toMatchObject({ status: 404 });
     await expect(
-      deleteItem(owner, privateItem.id, privateItem.title),
+      moveItemToTrash(owner, privateItem.id, privateItem.title),
     ).rejects.toMatchObject({ status: 404 });
     await expect(
       createRelation(owner, {

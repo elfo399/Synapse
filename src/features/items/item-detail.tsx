@@ -225,8 +225,8 @@ function ItemEditor({
         body: JSON.stringify({ confirmTitle: confirmation }),
       });
       changed();
-      notify("Elemento eliminato definitivamente.");
-      router.push("/archive");
+      notify("Elemento spostato nel Cestino.");
+      router.push("/trash");
     } catch (error) {
       setError(errorMessage(error));
     } finally {
@@ -267,7 +267,11 @@ function ItemEditor({
     try {
       await api("/api/items", {
         method: "POST",
-        body: JSON.stringify({ title: createTitle, type: "RESOURCE", inbox: true }),
+        body: JSON.stringify({
+          title: createTitle,
+          type: "RESOURCE",
+          inbox: true,
+        }),
       });
       setCreateTitle(null);
       changed();
@@ -322,9 +326,9 @@ function ItemEditor({
           <span aria-current="page">{item.title}</span>
         </nav>
         <div className="document-actions">
-          {(["AREA", "PROJECT", "RESOURCE"] as string[]).includes(item.type) && (
-            <TransferActions item={item} />
-          )}
+          {(["AREA", "PROJECT", "RESOURCE"] as string[]).includes(
+            item.type,
+          ) && <TransferActions item={item} />}
           <span
             className={`save-indicator ${dirty ? "unsaved" : ""}`}
             role="status"
@@ -647,7 +651,7 @@ function ItemEditor({
                 }}
               >
                 <Trash2 size={14} />
-                Elimina definitivamente
+                Sposta nel Cestino
               </button>
             </footer>
           </aside>
@@ -660,25 +664,46 @@ function ItemEditor({
           onOpenChange={setDeleteOpen}
           onDeleted={() => {
             changed();
-            notify("Elemento eliminato definitivamente.");
-            router.push("/archive");
+            notify("Elemento spostato nel Cestino.");
+            router.push("/trash");
           }}
         />
       ) : (
         <Modal
           open={deleteOpen}
           onOpenChange={setDeleteOpen}
-          title="Eliminare definitivamente questo elemento?"
-          description="L’elemento e i suoi collegamenti saranno eliminati. L’operazione è irreversibile. Puoi archiviarlo se vuoi conservarlo."
+          title="Spostare questo elemento nel Cestino?"
+          description="L?elemento rester? recuperabile dal Cestino. Contenuti, allegati e collegamenti non verranno eliminati."
         >
           <label>
             Digita <strong>{item.title}</strong> per confermare
-            <input autoComplete="off" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} aria-label="Conferma il titolo dell’elemento" placeholder="Titolo esatto dell’elemento" />
+            <input
+              autoComplete="off"
+              value={confirmation}
+              onChange={(event) => setConfirmation(event.target.value)}
+              aria-label="Conferma il titolo dell’elemento"
+              placeholder="Titolo esatto dell’elemento"
+            />
           </label>
-          {error && <p className="form-error" role="alert">{error}</p>}
+          {error && (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          )}
           <div className="dialog-footer">
-            <button className="button button-secondary" onClick={() => setDeleteOpen(false)}>Conserva elemento</button>
-            <button className="button button-danger" disabled={busy || confirmation !== item.title} onClick={remove}><Trash2 size={15} />Elimina definitivamente</button>
+            <button
+              className="button button-secondary"
+              onClick={() => setDeleteOpen(false)}
+            >
+              Conserva elemento
+            </button>
+            <button
+              className="button button-danger"
+              disabled={busy || confirmation !== item.title}
+              onClick={remove}
+            >
+              <Trash2 size={15} /> Sposta nel Cestino
+            </button>
           </div>
         </Modal>
       )}

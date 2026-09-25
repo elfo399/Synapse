@@ -91,15 +91,15 @@ test("private workspace: login, capture, process, graph, archive and logout", as
     page.getByRole("button", { name: "Archivia elemento", exact: true }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "Elimina definitivamente", exact: true })
+    .getByRole("button", { name: "Sposta nel Cestino", exact: true })
     .click();
   const dialog = page.getByRole("dialog");
   await expect(
-    dialog.getByRole("button", { name: "Elimina definitivamente" }),
+    dialog.getByRole("button", { name: "Sposta nel Cestino" }),
   ).toBeDisabled();
   await dialog.getByLabel("Conferma il titolo dell’elemento").fill(title);
-  await dialog.getByRole("button", { name: "Elimina definitivamente" }).click();
-  await expect(page).toHaveURL(/\/archive$/);
+  await dialog.getByRole("button", { name: "Sposta nel Cestino" }).click();
+  await expect(page).toHaveURL(/\/trash$/);
   await page.getByRole("button", { name: "Esci" }).click();
   await expect(page).toHaveURL(/\/login$/);
   expect((await page.request.get("/api/graph")).status()).toBe(401);
