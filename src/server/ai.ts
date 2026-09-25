@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { getItemHref } from "@/domain/item-url";
 import { semanticSearch, indexStatus, processEmbeddingJobs } from "@/server/ai-index";
 import { searchItems } from "@/server/search";
-import { searchWeb, webSearchConfig, webSearchStatus } from "@/server/web-search";
+import { searchWebAutomatically, webSearchConfig, webSearchStatus } from "@/server/web-search";
 import { HttpError } from "@/server/errors";
 
 export type AiMode = "AUTO" | "KNOWLEDGE" | "GENERAL" | "WEB" | "COMBINED";
@@ -49,11 +49,22 @@ type ToolCall = {
 };
 
 type ToolPlan = { tools: ToolCall[] };
+type PlannerOutcome =
+  | { state: "planned"; plan: ToolPlan; corrected: boolean }
+  | { state: "failed"; reason: "invalid_json" | "invalid_tool" | "planner_timeout" | "planner_unavailable" };
 type ToolExecution = {
   sources: AiSource[];
   context: string[];
   activeProjectId?: string | null;
   used: Set<ToolName>;
+};
+export type AssistantCatalogResult = {
+  state: "ok" | "invalid_type";
+  itemType?: ItemType;
+  total?: number;
+  items: Array<{ id: string; title: string; status: string; href: string }>;
+  truncated?: boolean;
+  sources: AiSource[];
 };
 
 export const DEFAULT_OLLAMA_MODEL = "qwen3:1.7b";
@@ -61,8 +72,13 @@ export const DEFAULT_AI_MODEL = process.env.OLLAMA_CHAT_MODEL?.trim() || process
 const MAX_HISTORY_MESSAGES = 12;
 const MAX_TOOL_CALLS = 3;
 const MAX_TOOL_LIMIT = 25;
-const defaultZone = process.env.APP_TIMEZONE ?? process.env.TZ ?? "Europe/Rome";
 let activeGeneration = false;
+
+function traceAi(event: string, data: Record<string, string | number | boolean | undefined> = {}) {
+  if (process.env.NODE_ENV !== "development") return;
+  // Metadata only: never include messages, notes, prompts, URLs, or item titles.
+  console.info("[synapse-ai]", event, data);
+}
 
 function numberEnv(name: string, fallback: number, min: number, max: number) {
   const value = Number(process.env[name] ?? fallback);
@@ -161,80 +177,115 @@ function validItemType(value: unknown): ItemType | undefined {
     : undefined;
 }
 
-function validTimezone(value: unknown) {
-  if (typeof value !== "string" || !value.trim()) return defaultZone;
-  try {
-    new Intl.DateTimeFormat("it-IT", { timeZone: value });
-    return value;
-  } catch {
-    return defaultZone;
-  }
+const TOOL_NAMES = new Set<ToolName>([
+  "search_knowledge", "list_items", "get_project", "get_relations", "search_web", "get_time", "respond",
+]);
+const PLAN_FORMAT = {
+  type: "object",
+  additionalProperties: false,
+  required: ["tools"],
+  properties: {
+    tools: {
+      type: "array",
+      minItems: 1,
+      maxItems: MAX_TOOL_CALLS,
+      items: {
+        type: "object",
+        required: ["name"],
+        properties: {
+          name: { type: "string", enum: [...TOOL_NAMES] },
+          query: { type: "string" },
+          project: { type: "string" },
+          itemType: { type: "string", enum: Object.values(ItemType) },
+          timezone: { type: "string" },
+          limit: { type: "integer", minimum: 1, maximum: MAX_TOOL_LIMIT },
+        },
+      },
+    },
+  },
+};
+
+function isValidTimezone(value: unknown): value is string {
+  if (typeof value !== "string" || !value.trim()) return false;
+  try { new Intl.DateTimeFormat("it-IT", { timeZone: value }); return true; } catch { return false; }
 }
 
-function toolPlanPrompt(webAllowed: boolean, activeProjectTitle?: string | null) {
+function toolPlanPrompt(args: { webAllowed: boolean; activeProjectTitle?: string | null; history: ChatMessage[]; correction?: string }) {
+  const conversation = args.history.slice(-4).map((message) => `${message.role === "user" ? "Utente" : "Synapse"}: ${message.content.slice(0, 600)}`).join("\n");
   return `Sei il pianificatore interno di Synapse. Scegli al massimo ${MAX_TOOL_CALLS} strumenti utili, senza mai generare una risposta per l'utente.
-Rispondi SOLO con JSON nel formato {"tools":[...]}. Ogni strumento deve essere uno di:
-- search_knowledge: {"name":"search_knowledge","query":"domanda o parole chiave","limit":1-25}
-- list_items: {"name":"list_items","itemType":"PROJECT|NOTE|TASK|RESOURCE|AREA|...","limit":1-25}; usalo per conteggi o elenchi espliciti
-- get_project: {"name":"get_project","project":"titolo del progetto o __ACTIVE__"}; usalo per informazioni su uno specifico progetto
-- get_relations: {"name":"get_relations","project":"titolo del progetto o __ACTIVE__"}; usalo per elementi collegati
-- search_web: {"name":"search_web","query":"domanda pubblica dell'utente"}; disponibile solo se Web è consentito
-- get_time: {"name":"get_time","timezone":"Area/Città"}; per data o ora
-- respond: {"name":"respond"}; se nessun recupero è necessario.
-Non inventare titoli o ID. Per domande ambigue su dati personali scegli respond o search_knowledge. Non usare search_web quando Web non è consentito. Il progetto attivo della conversazione ? ${activeProjectTitle ? `"${activeProjectTitle}"` : "assente"}.`;
+Rispondi esclusivamente con JSON conforme allo schema fornito.
+Strumenti: search_knowledge per il contenuto degli Item; list_items per elencare o contare elementi e richiede sempre itemType valido; get_project per un progetto nominato o __ACTIVE__; get_relations per i collegamenti di un progetto; search_web per dati esterni; get_time per data e ora; respond se non serve alcun recupero.
+Per elenchi o conteggi di progetti devi scegliere list_items con itemType PROJECT, mai search_knowledge. Non inventare ID o titoli. Per dati personali ambigui scegli respond o search_knowledge. search_web ? ${args.webAllowed ? "consentito" : "vietato"}.
+Il progetto attivo, validato dal server, ? ${args.activeProjectTitle ? `"${args.activeProjectTitle}"` : "assente"}. Cronologia recente della stessa conversazione:\n${conversation || "nessuna"}${args.correction ? `\nCorreggi il piano precedente: ${args.correction}.` : ""}`;
 }
 
-function parsePlan(content: string): ToolPlan | null {
+export function parseToolPlan(content: string): { ok: true; plan: ToolPlan } | { ok: false; reason: "invalid_json" | "invalid_tool" } {
   const candidate = content.match(/\{[\s\S]*\}/)?.[0] || content;
-  try {
-    const parsed = JSON.parse(candidate) as { tools?: unknown };
-    if (!Array.isArray(parsed.tools)) return null;
-    const allowed = new Set<ToolName>([
-      "search_knowledge", "list_items", "get_project", "get_relations", "search_web", "get_time", "respond",
-    ]);
-    const tools: ToolCall[] = [];
-    for (const raw of parsed.tools.slice(0, MAX_TOOL_CALLS)) {
-      if (!raw || typeof raw !== "object") continue;
-      const call = raw as Record<string, unknown>;
-      if (typeof call.name !== "string" || !allowed.has(call.name as ToolName)) continue;
-      tools.push({
-        name: call.name as ToolName,
-        query: typeof call.query === "string" ? call.query.slice(0, 500) : undefined,
-        project: typeof call.project === "string" ? call.project.slice(0, 180) : undefined,
-        itemType: typeof call.itemType === "string" ? call.itemType : undefined,
-        timezone: typeof call.timezone === "string" ? call.timezone : undefined,
-        limit: clampLimit(call.limit),
-      });
-    }
-    return { tools: tools.length ? tools : [{ name: "respond" }] };
-  } catch {
-    return null;
+  let parsed: { tools?: unknown };
+  try { parsed = JSON.parse(candidate) as { tools?: unknown }; } catch { return { ok: false, reason: "invalid_json" }; }
+  if (!Array.isArray(parsed.tools) || !parsed.tools.length || parsed.tools.length > MAX_TOOL_CALLS) return { ok: false, reason: "invalid_tool" };
+  const tools: ToolCall[] = [];
+  for (const raw of parsed.tools) {
+    if (!raw || typeof raw !== "object") return { ok: false, reason: "invalid_tool" };
+    const call = raw as Record<string, unknown>;
+    if (typeof call.name !== "string" || !TOOL_NAMES.has(call.name as ToolName)) return { ok: false, reason: "invalid_tool" };
+    const name = call.name as ToolName;
+    const query = typeof call.query === "string" ? call.query.trim().slice(0, 500) : undefined;
+    const project = typeof call.project === "string" ? call.project.trim().slice(0, 180) : undefined;
+    const itemType = typeof call.itemType === "string" ? call.itemType : undefined;
+    const timezone = typeof call.timezone === "string" ? call.timezone.trim() : undefined;
+    if (name === "list_items" && !validItemType(itemType)) return { ok: false, reason: "invalid_tool" };
+    if (name === "search_knowledge" && !query) return { ok: false, reason: "invalid_tool" };
+    if ((name === "get_project" || name === "get_relations") && !project) return { ok: false, reason: "invalid_tool" };
+    if (name === "get_time" && !isValidTimezone(timezone)) return { ok: false, reason: "invalid_tool" };
+    tools.push({ name, query, project, itemType, timezone, limit: clampLimit(call.limit) });
   }
+  return { ok: true, plan: { tools } };
 }
 
-async function planTools(question: string, webAllowed: boolean, activeProjectTitle?: string | null): Promise<ToolPlan> {
+async function requestToolPlan(args: { question: string; webAllowed: boolean; activeProjectTitle?: string | null; history: ChatMessage[]; correction?: string }) {
+  const config = aiConfig();
+  const response = await ollama("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: config.model,
+      stream: false,
+      ...(isQwen3Model(config.model) ? { think: false } : {}),
+      format: PLAN_FORMAT,
+      options: { temperature: 0, num_predict: 220, num_ctx: config.contextTokens },
+      messages: [
+        { role: "system", content: toolPlanPrompt(args) },
+        { role: "user", content: args.question },
+      ],
+    }),
+    signal: AbortSignal.timeout(Math.min(config.timeoutMs, 20_000)),
+  });
+  if (!response.ok) throw new Error("planner_unavailable");
+  const payload = await response.json() as { message?: { content?: string } };
+  return parseToolPlan(payload.message?.content || "");
+}
+
+async function planTools(args: { question: string; webAllowed: boolean; activeProjectTitle?: string | null; history: ChatMessage[] }): Promise<PlannerOutcome> {
+  const startedAt = Date.now();
   try {
-    const response = await ollama("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: aiConfig().model,
-        stream: false,
-        ...(isQwen3Model(aiConfig().model) ? { think: false } : {}),
-        format: "json",
-        options: { temperature: 0, num_predict: 220 },
-        messages: [
-          { role: "system", content: toolPlanPrompt(webAllowed, activeProjectTitle) },
-          { role: "user", content: question },
-        ],
-      }),
-      signal: AbortSignal.timeout(20_000),
-    });
-    if (!response.ok) return { tools: [{ name: "respond" }] };
-    const payload = (await response.json()) as { message?: { content?: string } };
-    return parsePlan(payload.message?.content || "") || { tools: [{ name: "respond" }] };
-  } catch {
-    return { tools: [{ name: "respond" }] };
+    const first = await requestToolPlan(args);
+    if (first.ok) {
+      traceAi("planner_requested", { tools: first.plan.tools.map((tool) => tool.name).join(","), toolCount: first.plan.tools.length, elapsedMs: Date.now() - startedAt });
+      return { state: "planned", plan: first.plan, corrected: false };
+    }
+    traceAi("planner_parse_error", { reason: first.reason });
+    const corrected = await requestToolPlan({ ...args, correction: first.reason });
+    if (corrected.ok) {
+      traceAi("planner_requested", { tools: corrected.plan.tools.map((tool) => tool.name).join(","), toolCount: corrected.plan.tools.length, corrected: true, elapsedMs: Date.now() - startedAt });
+      return { state: "planned", plan: corrected.plan, corrected: true };
+    }
+    traceAi("planner_parse_error", { reason: corrected.reason, corrected: true });
+    return { state: "failed", reason: corrected.reason };
+  } catch (error) {
+    const reason = error instanceof DOMException && error.name === "TimeoutError" ? "planner_timeout" : "planner_unavailable";
+    traceAi("planner_failed", { reason, elapsedMs: Date.now() - startedAt });
+    return { state: "failed", reason };
   }
 }
 
@@ -269,21 +320,28 @@ function itemSource(item: { id: string; title: string; content?: string | null; 
   };
 }
 
-async function listItems(userId: string, type: ItemType | undefined, limit: number) {
-  const items = await prisma.item.findMany({
-    where: { userId, archivedAt: null, ...(type ? { type } : {}) },
-    select: { id: true, title: true, content: true, type: true, status: true, dueAt: true },
-    orderBy: { updatedAt: "desc" },
-    take: limit,
-  });
-  return {
-    sources: items.map(itemSource),
-    context: items.length
-      ? items.map((item) => `- ${item.type}: ${item.title}${item.status ? ` — stato ${item.status}` : ""}${item.dueAt ? ` — scadenza ${item.dueAt.toLocaleDateString("it-IT")}` : ""}`).join("\n")
-      : "Nessun elemento corrispondente nell'account corrente.",
-  };
+export async function listAssistantItems(userId: string, itemType: unknown, limit: unknown): Promise<AssistantCatalogResult> {
+  const type = validItemType(itemType);
+  if (!type) {
+    traceAi("tool_result", { tool: "list_items", state: "invalid_type" });
+    return { state: "invalid_type", items: [], sources: [] };
+  }
+  const take = clampLimit(limit);
+  const where = { userId, type, archivedAt: null } as const;
+  const [total, rows] = await prisma.$transaction([
+    prisma.item.count({ where }),
+    prisma.item.findMany({
+      where,
+      select: { id: true, title: true, content: true, type: true, status: true },
+      orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+      take,
+    }),
+  ]);
+  const items = rows.map((item) => ({ id: item.id, title: item.title, status: item.status, href: getItemHref(item) }));
+  const sources = rows.map(itemSource);
+  traceAi("tool_result", { tool: "list_items", itemType: type, total, returned: rows.length });
+  return { state: "ok", itemType: type, total, items, truncated: total > rows.length, sources };
 }
-
 async function projectContext(userId: string, project: { id: string; title: string; content?: string | null; status?: string | null }) {
   const related = await prisma.itemRelation.findMany({
     where: {
@@ -312,12 +370,25 @@ async function projectContext(userId: string, project: { id: string; title: stri
   };
 }
 
-async function searchKnowledge(userId: string, query: string, limit: number) {
-  const lexical = await searchItems(userId, { q: query, archive: "active", limit }).catch(() => ({ items: [] }));
+type KnowledgeSearchResult = { state: "ok" | "empty" | "failed"; sources: AiSource[]; context: string };
+
+async function searchKnowledge(userId: string, query: string, limit: number): Promise<KnowledgeSearchResult> {
   void processEmbeddingJobs(1).catch(() => undefined);
-  const semantic = await semanticSearch(userId, query, limit).catch(() => []);
-  const ids = [...new Set([...lexical.items.map((item) => item.id), ...semantic.map((item) => item.itemId)])].slice(0, limit);
-  if (!ids.length) return { sources: [], context: "Nessuna conoscenza pertinente trovata." };
+  const [lexical, semantic] = await Promise.allSettled([
+    searchItems(userId, { q: query, archive: "active", limit }),
+    semanticSearch(userId, query, limit),
+  ]);
+  if (lexical.status === "rejected" && semantic.status === "rejected") {
+    traceAi("tool_result", { tool: "search_knowledge", state: "failed" });
+    return { state: "failed", sources: [], context: "Il recupero delle conoscenze non ? disponibile per questa risposta; l'assenza di fonti non indica che l'archivio sia vuoto." };
+  }
+  const lexicalIds = lexical.status === "fulfilled" ? lexical.value.items.map((item) => item.id) : [];
+  const semanticIds = semantic.status === "fulfilled" ? semantic.value.map((item) => item.itemId) : [];
+  const ids = [...new Set([...lexicalIds, ...semanticIds])].slice(0, limit);
+  if (!ids.length) {
+    traceAi("tool_result", { tool: "search_knowledge", state: "empty" });
+    return { state: "empty", sources: [], context: "Nessuna conoscenza pertinente ? stata trovata per questa ricerca." };
+  }
   const items = await prisma.item.findMany({
     where: { userId, id: { in: ids }, archivedAt: null },
     select: { id: true, title: true, content: true, type: true },
@@ -327,7 +398,12 @@ async function searchKnowledge(userId: string, query: string, limit: number) {
     const item = byId.get(id);
     return item ? [itemSource(item)] : [];
   });
-  return { sources, context: sources.length ? sources.map((source) => `- ${source.title}: ${source.excerpt}`).join("\n") : "Nessuna conoscenza pertinente trovata." };
+  traceAi("tool_result", { tool: "search_knowledge", state: "ok", returned: sources.length, ftsAvailable: lexical.status === "fulfilled", vectorAvailable: semantic.status === "fulfilled" });
+  return {
+    state: "ok",
+    sources,
+    context: sources.map((source) => `- ${source.title}: ${source.excerpt}`).join("\n"),
+  };
 }
 function timeContext(timezone: string) {
   const now = new Date();
@@ -340,14 +416,20 @@ function timeContext(timezone: string) {
 }
 
 function applyConversationMode(plan: ToolPlan, mode: AiMode, question: string, webAllowed: boolean): ToolPlan {
-  if (mode === "KNOWLEDGE") return { tools: [{ name: "search_knowledge", query: question, limit: 8 }] };
+  if (mode === "KNOWLEDGE") {
+    const local = plan.tools.filter((tool) => tool.name !== "search_web");
+    return { tools: local.length ? local : [{ name: "respond" }] };
+  }
   if (mode === "WEB") return { tools: [webAllowed ? { name: "search_web", query: question } : { name: "respond" }] };
-  if (mode === "COMBINED") return {
-    tools: [
-      { name: "search_knowledge", query: question, limit: 8 },
-      ...(webAllowed ? [{ name: "search_web" as const, query: question }] : []),
-    ],
-  };
+  if (mode === "COMBINED") {
+    const withLocal = plan.tools.some((tool) => ["search_knowledge", "list_items", "get_project", "get_relations"].includes(tool.name))
+      ? plan.tools
+      : [{ name: "search_knowledge" as const, query: question, limit: 8 }, ...plan.tools];
+    const withWeb = webAllowed && !withLocal.some((tool) => tool.name === "search_web")
+      ? [...withLocal, { name: "search_web" as const, query: question }]
+      : withLocal;
+    return { tools: withWeb.slice(0, MAX_TOOL_CALLS) };
+  }
   return plan;
 }
 
@@ -357,61 +439,69 @@ async function executeTools(args: {
   plan: ToolPlan;
   webAllowed: boolean;
   activeProjectId?: string | null;
-}) : Promise<ToolExecution> {
+}): Promise<ToolExecution> {
   const result: ToolExecution = { sources: [], context: [], activeProjectId: args.activeProjectId, used: new Set() };
 
-  for (const tool of args.plan.tools.slice(0, MAX_TOOL_CALLS)) {
+  for (const tool of args.plan.tools) {
     result.used.add(tool.name);
+    traceAi("tool_executed", { tool: tool.name });
     if (tool.name === "respond") continue;
     if (tool.name === "search_knowledge") {
-      const knowledge = await searchKnowledge(args.userId, tool.query || args.question, clampLimit(tool.limit));
+      const knowledge = await searchKnowledge(args.userId, tool.query!, clampLimit(tool.limit));
       result.sources.push(...knowledge.sources);
-      result.context.push(`Conoscenze Synapse:\n${knowledge.context}`);
+      result.context.push(`Risultato search_knowledge (${knowledge.state}):\n${knowledge.context}`);
       continue;
     }
     if (tool.name === "list_items") {
-      const catalog = await listItems(args.userId, validItemType(tool.itemType), clampLimit(tool.limit));
-      result.sources.push(...catalog.sources);
-      result.context.push(`Catalogo Synapse:\n${catalog.context}`);
+      const catalog = await listAssistantItems(args.userId, tool.itemType, tool.limit);
+      if (catalog.state === "invalid_type") {
+        result.context.push("Lo strumento list_items ha ricevuto un tipo non valido: non ? stata eseguita una ricerca generica e non si pu? dedurre che l'archivio sia vuoto.");
+      } else {
+        result.sources.push(...catalog.sources);
+        result.context.push(`Catalogo strutturato Synapse:\n${JSON.stringify({ itemType: catalog.itemType, total: catalog.total, items: catalog.items, truncated: catalog.truncated })}`);
+      }
       continue;
     }
     if (tool.name === "get_project" || tool.name === "get_relations") {
       const project = await resolveProject(args.userId, tool.project, result.activeProjectId);
       if (!project) {
-        result.context.push("Il progetto richiesto non — stato identificato in modo univoco nell'account corrente.");
+        traceAi("tool_result", { tool: tool.name, state: "not_found" });
+        result.context.push("Il progetto richiesto non ? stato identificato in modo univoco nell'account corrente. Questo non equivale a un archivio di progetti vuoto.");
         continue;
       }
       result.activeProjectId = project.id;
       const context = await projectContext(args.userId, project);
       result.sources.push(...context.sources);
+      traceAi("tool_result", { tool: tool.name, state: "ok", returned: context.sources.length });
       result.context.push(`${tool.name === "get_relations" ? "Relazioni del progetto" : "Contesto del progetto"}:\n${context.context}`);
       continue;
     }
     if (tool.name === "search_web") {
       if (!args.webAllowed) {
-        result.context.push("La ricerca Web non è autorizzata per questa richiesta.");
+        result.context.push("La ricerca Web non ? autorizzata per questa richiesta.");
         continue;
       }
-      // The only payload sent outside Synapse is the user's own question, never local context.
-      const web = await searchWeb(args.question);
-      result.sources.push(...web.map((item) => ({
-        id: item.id,
-        kind: "WEB" as const,
-        title: item.title,
-        excerpt: item.excerpt,
-        href: item.url,
-      })));
-      result.context.push(web.length
-        ? `Risultati Web verificati:\n${web.map((item) => `- ${item.title}: ${item.excerpt}\n  ${item.url}`).join("\n")}`
-        : "La ricerca Web non ha restituito fonti sufficienti.");
+      // SearXNG receives the user's message only; local results never leave Synapse.
+      try {
+        const web = await searchWebAutomatically(args.question);
+        result.sources.push(...web.map((item) => ({ id: item.id, kind: "WEB" as const, title: item.title, excerpt: item.excerpt, href: item.url })));
+        traceAi("tool_result", { tool: "search_web", returned: web.length });
+        result.context.push(web.length
+          ? `Risultati Web verificati:\n${web.map((item) => `- ${item.title}: ${item.excerpt}\n  ${item.url}`).join("\n")}`
+          : "La ricerca Web non ha restituito fonti sufficienti.");
+      } catch {
+        traceAi("tool_failed", { tool: "search_web" });
+        result.context.push("La ricerca Web non ? disponibile per questa risposta: non presentare informazioni come aggiornate o verificate.");
+      }
       continue;
     }
-    if (tool.name === "get_time") result.context.push(timeContext(validTimezone(tool.timezone)));
+    if (tool.name === "get_time") result.context.push(timeContext(tool.timezone!));
   }
 
-  return { ...result, sources: uniqueSources(result.sources) };
+  const sources = uniqueSources(result.sources);
+  traceAi("final_context", { sourceCount: sources.length, toolCount: result.used.size });
+  return { ...result, sources };
 }
-
 export function buildSystemPrompt(_strategy: AiStrategy, sources: AiSource[], toolContext = "") {
   const sourceInstructions = sources.length
     ? "Le fonti usate sono elencate dopo la risposta. Cita nel testo solo le fonti realmente utili usando [S1], [S2] e così via."
@@ -450,9 +540,21 @@ export async function beginAutomaticGeneration(args: {
       webSearch: args.options?.webSearch ?? true,
       reasoning: args.options?.reasoning ?? false,
     };
-    const webAllowed = Boolean(options.webSearch && webSearchConfig().enabled);
-    const planned = await planTools(content, webAllowed, activeProject?.title);
-    const plan = applyConversationMode(planned, conversation.mode as AiMode, content, webAllowed);
+    const historyRows = await prisma.aiMessage.findMany({
+      where: { conversationId: conversation.id, state: "COMPLETE" },
+      select: { role: true, content: true },
+      orderBy: { createdAt: "desc" },
+      take: MAX_HISTORY_MESSAGES,
+    });
+    const history: ChatMessage[] = historyRows.reverse().map((message) => ({
+      role: message.role === "USER" ? "user" : "assistant",
+      content: message.content,
+    }));
+    const webAllowed = Boolean(options.webSearch && webSearchConfig().enabled && webSearchConfig().validUrl);
+    const planning = await planTools({ question: content, webAllowed, activeProjectTitle: activeProject?.title, history });
+    const plan = planning.state === "planned"
+      ? applyConversationMode(planning.plan, conversation.mode as AiMode, content, webAllowed)
+      : { tools: [] };
     const execution = await executeTools({
       userId: args.userId,
       question: content,
@@ -460,6 +562,10 @@ export async function beginAutomaticGeneration(args: {
       webAllowed,
       activeProjectId: activeProject?.id || null,
     });
+    if (planning.state === "failed") {
+      execution.context.unshift(`Il pianificatore degli strumenti non ? riuscito a completare il recupero (${planning.reason}). Non dichiarare l'archivio vuoto: spiega che le fonti personali non sono state consultate per questa risposta.`);
+      traceAi("planner_fallback", { reason: planning.reason });
+    }
 
     await updateConversationPreferences(args.userId, conversation.id, options);
     if (conversation.title === "Nuova conversazione") {
@@ -471,17 +577,6 @@ export async function beginAutomaticGeneration(args: {
       await prisma.aiConversation.update({ where: { id: conversation.id }, data: { activeProjectId: execution.activeProjectId ?? null } });
       conversation.activeProjectId = execution.activeProjectId ?? null;
     }
-    const historyRows = await prisma.aiMessage.findMany({
-      where: { conversationId: conversation.id, id: { not: userMessage.id } },
-      select: { role: true, content: true },
-      orderBy: { createdAt: "desc" },
-      take: MAX_HISTORY_MESSAGES,
-    });
-    const history: ChatMessage[] = historyRows.reverse().map((message) => ({
-      role: message.role === "USER" ? "user" : "assistant",
-      content: message.content,
-    }));
-
     return {
       conversation,
       userMessage,
@@ -535,19 +630,24 @@ export async function completeGeneration(args: {
   content: string;
   sources: AiSource[];
 }) {
+  const cited = new Set([...args.content.matchAll(/\[S\d+\]/g)].map((match) => match[0]));
+  const persistedSources = args.sources.map((source) => ({
+    ...source,
+    usage: source.citation && cited.has(source.citation) ? "CITED" as const : "CONSULTED" as const,
+  }));
   const [message] = await prisma.$transaction([
     prisma.aiMessage.create({
       data: {
         conversationId: args.conversationId,
         role: "ASSISTANT",
         content: args.content,
-        sources: args.sources as unknown as Prisma.InputJsonValue,
+        sources: persistedSources as unknown as Prisma.InputJsonValue,
       },
     }),
     prisma.aiConversation.update({ where: { id: args.conversationId }, data: { updatedAt: new Date() } }),
   ]);
   activeGeneration = false;
-  return { message, sources: args.sources };
+  return { message, sources: persistedSources };
 }
 
 export function abortGeneration() {
