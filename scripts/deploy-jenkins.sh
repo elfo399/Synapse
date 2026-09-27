@@ -40,6 +40,7 @@ export COMPOSE_PROJECT_NAME=synapse
 export COMPOSE_FILE="$release/compose.yaml:$service_root/compose.override.yaml"
 export COMPOSE_ENV_FILES="$service_root/.env"
 export SYNAPSE_IMAGE_TAG="$commit"
+export SYNAPSE_IMAGE="synapse:$commit"
 export BACKUP_DIR="$service_root/backups"
 
 docker compose config --quiet

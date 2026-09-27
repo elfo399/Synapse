@@ -5,7 +5,7 @@ services:
     build:
       context: .
       target: runner
-    image: secondbrain:local
+    image: ${SYNAPSE_IMAGE:-synapse:${SYNAPSE_IMAGE_TAG:-latest}}
     init: true
     restart: unless-stopped
     depends_on:
@@ -52,7 +52,7 @@ services:
         max-file: "3"
 
   trash-cleanup:
-    image: secondbrain:local
+    image: ${SYNAPSE_IMAGE:-synapse:${SYNAPSE_IMAGE_TAG:-latest}}
     restart: unless-stopped
     depends_on:
       secondbrain-db:
@@ -72,7 +72,7 @@ services:
       disable: true
 
   ai-worker:
-    image: secondbrain:local
+    image: ${SYNAPSE_IMAGE:-synapse:${SYNAPSE_IMAGE_TAG:-latest}}
     init: true
     restart: unless-stopped
     depends_on:
