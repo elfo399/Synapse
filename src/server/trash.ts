@@ -59,6 +59,7 @@ export async function listTrash(
       ? { title: { contains: input.q, mode: "insensitive" as const } }
       : {}),
   };
+  const settings = await prisma.userSettings.upsert({ where: { userId }, create: { userId }, update: {}, select: { trashRetentionDays: true } });
   const operations = await prisma.trashOperation.findMany({
     where: { userId, items: { some: matches } },
     include: {
@@ -71,6 +72,8 @@ export async function listTrash(
     rootItemId: operation.rootItemId,
     includeContained: operation.includeContained,
     deletedAt: operation.deletedAt.toISOString(),
+    expiresAt: (operation.purgeAfter ?? new Date(operation.deletedAt.getTime() + settings.trashRetentionDays * 86_400_000)).toISOString(),
+    daysRemaining: Math.max(0, Math.ceil(((operation.purgeAfter?.getTime() ?? operation.deletedAt.getTime() + settings.trashRetentionDays * 86_400_000) - Date.now()) / 86_400_000)),
     items: operation.items.map(serializeItem),
   }));
 }

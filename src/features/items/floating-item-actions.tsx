@@ -5,6 +5,7 @@ import {
   Archive,
   Check,
   Eye,
+  History,
   LoaderCircle,
   MoreHorizontal,
   Pencil,
@@ -26,6 +27,7 @@ type FloatingItemActionsProps = {
   onDiscard: () => void;
   onArchive: () => void;
   onTrash: () => void;
+  onHistory: () => void;
 };
 
 export function FloatingItemActions({
@@ -39,6 +41,7 @@ export function FloatingItemActions({
   onDiscard,
   onArchive,
   onTrash,
+  onHistory,
 }: FloatingItemActionsProps) {
   const [open, setOpen] = useState(false);
   const menu = useRef<HTMLDivElement>(null);
@@ -107,6 +110,9 @@ export function FloatingItemActions({
             </button>
             <button type="button" role="menuitem" onClick={() => choose(onOrganize)}>
               <SlidersHorizontal size={15} /> Organizza
+            </button>
+            <button type="button" role="menuitem" onClick={() => choose(onHistory)}>
+              <History size={15} /> Cronologia delle versioni
             </button>
             {dirty && (
               <button type="button" role="menuitem" onClick={() => choose(onDiscard)}>

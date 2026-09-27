@@ -42,6 +42,7 @@ import { CaptureDialog } from "@/features/items/capture-dialog";
 import { SearchDialog } from "./search-dialog";
 import { WorkspaceContext, type NavigationGuard } from "./workspace-context";
 import { Modal } from "./ui";
+import { FloatingFocusTimer } from "./floating-focus-timer";
 import "./workspace-shell.css";
 
 const navigation = [
@@ -546,6 +547,7 @@ export function WorkspaceShell({
         />
       )}
       <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+      <FloatingFocusTimer />
       {toast && (
         <div className="toast" role="status">
           <Check size={17} />

@@ -65,9 +65,6 @@ export function GraphView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const focus = searchParams.get("focus") || "";
-  const depth = ["1", "2", "3"].includes(searchParams.get("depth") || "")
-    ? searchParams.get("depth")!
-    : "1";
   const controls = useRef<GraphControls>(null);
   const workspace = useRef<HTMLDivElement>(null);
   const filterPopover = useRef<HTMLDetailsElement>(null);
@@ -105,7 +102,6 @@ export function GraphView() {
     focus,
     relation,
     q: debounced,
-    ...(focus ? { depth } : {}),
   }))
     if (value) params.set(key, value);
   const queryKey = params.toString();
@@ -182,9 +178,9 @@ export function GraphView() {
       "Il 3D non è disponibile in questo browser. Il grafo è aperto in 2D.",
     );
   }, [setMode, setRendererNotice]);
-  const local = (id: string, nextDepth = depth) => {
+  const local = (id: string) => {
     setSelected(id);
-    router.push(`/graph?focus=${encodeURIComponent(id)}&depth=${nextDepth}`);
+    router.push(`/graph?focus=${encodeURIComponent(id)}`);
   };
   const global = () => {
     setSelected(null);
@@ -269,25 +265,6 @@ export function GraphView() {
             Locale
           </button>
         </div>
-        {focus && (
-          <div
-            className="graph-depth"
-            role="group"
-            aria-label="Profondità del grafo locale"
-          >
-            <span>Livelli</span>
-            {["1", "2", "3"].map((value) => (
-              <button
-                key={value}
-                aria-pressed={depth === value}
-                aria-label={`Profondità ${value}`}
-                onClick={() => local(focus, value)}
-              >
-                {value}
-              </button>
-            ))}
-          </div>
-        )}
         <div
           className="graph-view-mode"
           role="group"
@@ -484,7 +461,9 @@ export function GraphView() {
           }}
         >
           <div className="graph-stage-label">
-            <span>{focus ? "Locale" : "Tutte le conoscenze"}</span>
+            <span>
+              {focus ? "Locale" : "Tutte le conoscenze"}
+            </span>
             {data && (
               <span>
                 {data.nodes.length} nodi · {data.edges.length} collegamenti

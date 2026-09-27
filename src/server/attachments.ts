@@ -216,8 +216,8 @@ export async function captureItem(
       const item = await createItemInTransaction(tx, userId, {
         ...itemInput,
         title,
-        type: detectedUrl ? "BOOKMARK" : input.type,
-        url: detectedUrl || input.url,
+        type: detectedUrl && input.type !== "TASK" ? "BOOKMARK" : input.type,
+        url: input.type === "TASK" ? null : (detectedUrl || input.url),
       });
       if (prepared.length)
         await tx.attachment.createMany({

@@ -13,6 +13,9 @@ import { HttpError } from "./errors";
 import { attachmentStorage, type StorageProvider } from "./storage";
 import { safeFilename, validateUpload } from "./upload-validation";
 import { withUserTransaction } from "./transactions";
+import { allocateItemKey } from "./items";
+import { createItemRevision } from "./revisions";
+import { syncWikiLinks } from "./wikilinks";
 
 const FORMAT = "synapse-export";
 const VERSION = 1;
@@ -24,6 +27,7 @@ const allowedBlocks = new Set(["TEXT", "IMAGE", "AUDIO", "FILE", "LINK"]);
 
 type ExportItem = {
   id: string;
+  itemKey?: string | null;
   type: "AREA" | "PROJECT" | "RESOURCE" | "TASK";
   title: string;
   content: string;
@@ -124,6 +128,7 @@ export async function exportArchive(
   });
   const records: ExportItem[] = items.map((item) => ({
     id: item.id,
+    itemKey: item.itemKey,
     type:
       item.type === "BOOKMARK" ? "RESOURCE" : (item.type as ExportItem["type"]),
     title: item.title,
@@ -346,6 +351,7 @@ export async function importArchive(
             userId,
             title,
             titleNormalized: normalizeIdentity(title),
+            itemKey: await allocateItemKey(tx, userId),
             type: record.type,
             content: record.content || "",
             status: record.status as never,
@@ -442,6 +448,11 @@ export async function importArchive(
             },
           })
           .catch(() => {});
+      }
+      for (const record of items as ExportItem[]) {
+        const itemId = ids.get(record.id)!;
+        await syncWikiLinks(tx, userId, itemId, record.content || "");
+        await createItemRevision(tx, userId, itemId, { comment: "Importato in Synapse" });
       }
       const rootId = ids.get(manifestRootId);
       if (!rootId)

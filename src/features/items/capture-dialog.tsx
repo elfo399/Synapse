@@ -83,6 +83,10 @@ export function UniversalCaptureForm({
   onSaved?: () => void;
 }) {
   const { notify } = useWorkspace();
+  const taskMode = initialType === "TASK" && !inbox;
+  const [dueAt, setDueAt] = useState("");
+  const [status, setStatus] = useState("TODO");
+  const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   const [mode, setMode] = useState<Mode>(
     initialType === "BOOKMARK" ? "link" : "text",
   );
@@ -103,6 +107,7 @@ export function UniversalCaptureForm({
     title.trim() || content.trim() || url.trim() || draft.files.length,
   );
   function chooseMode(next: Mode) {
+    if (taskMode) return;
     setMode(next);
     if (next === "link") setType("BOOKMARK");
     else if (type === "BOOKMARK")
@@ -142,6 +147,7 @@ export function UniversalCaptureForm({
             .map((value) => value.trim())
             .filter(Boolean),
           ...(type === "BOOKMARK" ? { url } : {}),
+          ...(taskMode ? { status, dueAt: dueAt ? new Date(dueAt).toISOString() : null, type: "TASK" } : {}),
           voice,
           ...(voice && draft.files.length === 1
             ? { duration: memo!.duration }
@@ -194,8 +200,7 @@ export function UniversalCaptureForm({
           (event.target as HTMLElement).getAttribute("type") !== "url"
         ) {
           event.preventDefault();
-          chooseMode("link");
-          setUrl(pasted);
+          if (!taskMode) { chooseMode("link"); setUrl(pasted); }
         }
       }}
       onKeyDown={(event) => {
@@ -214,7 +219,7 @@ export function UniversalCaptureForm({
           <span className="sr-only">Titolo</span>
           <input
             ref={titleRef}
-            placeholder="Titolo (facoltativo)"
+            placeholder={taskMode ? "Che cosa devi fare?" : "Titolo (facoltativo)"}
             maxLength={200}
             value={title}
             disabled={busy}
@@ -240,7 +245,7 @@ export function UniversalCaptureForm({
         <span className="sr-only">Contenuto</span>
         <textarea
           placeholder={
-            mode === "text"
+            taskMode ? "Dettagli dell?attivit??" : mode === "text"
               ? "Cosa vuoi ricordare?"
               : "Aggiungi un appunto (facoltativo)…"
           }
@@ -250,7 +255,7 @@ export function UniversalCaptureForm({
           rows={embedded ? 3 : 4}
         />
       </label>
-      <div className="capture-modes" role="group" aria-label="Tipo di cattura">
+      {!taskMode && <div className="capture-modes" role="group" aria-label="Tipo di cattura">
         {modes.map((entry, index) => (
           <button
             key={entry.value}
@@ -277,7 +282,9 @@ export function UniversalCaptureForm({
             {entry.label}
           </button>
         ))}
-      </div>
+      </div>}
+      {taskMode && <div className="task-capture-fields"><label>Scadenza <input type="datetime-local" value={dueAt} onChange={(event) => setDueAt(event.target.value)} /></label><label>Stato <select value={status} onChange={(event) => setStatus(event.target.value)}><option value="TODO">Da fare</option><option value="IN_PROGRESS">In corso</option><option value="DONE">Completata</option><option value="CANCELLED">Annullata</option></select></label><button type="button" className="text-link" onClick={() => setAttachmentsOpen((value) => !value)}><Paperclip size={14} /> Allegati {attachmentsOpen ? "?" : "+"}</button></div>}
+      {taskMode && attachmentsOpen && <UploadPicker mode="file" maxBytes={draft.maxBytes} onFiles={addFiles} disabled={busy || recording} />}
       {mode === "audio" && (
         <AudioRecorder
           maxBytes={draft.maxBytes}
@@ -306,7 +313,7 @@ export function UniversalCaptureForm({
       />
       {detailsOpen && (
         <div className="capture-metadata">
-          <label>
+          {!taskMode && <label>
             Tipo
             <AppSelect
               aria-label="Tipo"
@@ -317,7 +324,7 @@ export function UniversalCaptureForm({
                 label: typeLabels[value],
               }))}
             />
-          </label>
+          </label>}
           <label>
             Etichette
             <input

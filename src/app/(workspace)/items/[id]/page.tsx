@@ -13,8 +13,14 @@ export default async function ItemPage({
   const session = await getSession();
   if (!session) redirect("/login");
   const item = await prisma.item.findFirst({
-    where: { userId: session.user.id, id: getItemId(segment) },
-    select: { id: true, title: true },
+    where: {
+      userId: session.user.id,
+      OR: [
+        { id: getItemId(segment) },
+        { itemKey: { equals: segment.trim().toUpperCase() } },
+      ],
+    },
+    select: { id: true, title: true, itemKey: true },
   });
   if (!item) notFound();
   const canonical = getItemHref(item);

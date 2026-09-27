@@ -1,4 +1,4 @@
-name: secondbrain
+﻿name: secondbrain
 
 services:
   secondbrain-web:
@@ -50,6 +50,26 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  trash-cleanup:
+    image: secondbrain:local
+    restart: unless-stopped
+    depends_on:
+      secondbrain-db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-secondbrain}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@secondbrain-db:5432/${POSTGRES_DB:-secondbrain}?schema=public
+      ATTACHMENT_STORAGE_PATH: /data/attachments
+    volumes:
+      - secondbrain-attachments:/data/attachments
+    entrypoint: ["npx", "tsx", "scripts/trash-cleanup.ts", "--watch"]
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      disable: true
 
   secondbrain-db:
     image: pgvector/pgvector:pg17

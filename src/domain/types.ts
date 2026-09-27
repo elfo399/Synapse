@@ -49,7 +49,7 @@ export interface TimeBlockSummary {
     weekdays?: number[];
     until?: string | null;
   } | null;
-  item?: Pick<ItemSummary, "id" | "title" | "type" | "status" | "dueAt"> | null;
+  item?: Pick<ItemSummary, "id" | "itemKey" | "title" | "type" | "status" | "dueAt"> | null;
   actualMinutes: number;
   conflict: boolean;
 }
@@ -84,6 +84,8 @@ export interface ItemSummary {
   updatedAt: string;
   archivedAt: string | null;
   version: number;
+  itemKey: string | null;
+  parentTitles?: string[];
   tags: TagSummary[];
   attachments?: import("./attachments").AttachmentSummary[];
   _count?: { outgoing: number; incoming: number };
@@ -91,6 +93,7 @@ export interface ItemSummary {
 export interface RelationItem {
   id: string;
   title: string;
+  itemKey?: string | null;
   type: ItemType;
   archivedAt: string | null;
   status?: ItemStatus;

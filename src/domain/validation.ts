@@ -71,6 +71,7 @@ export const itemPatchSchema = z
     primaryParentId: idSchema.nullable().optional(),
     archived: z.boolean().optional(),
     version: z.number().int().positive().optional(),
+    revisionComment: z.string().trim().max(500).optional(),
   })
   .strict();
 export const relationSchema = z

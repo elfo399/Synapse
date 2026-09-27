@@ -30,6 +30,11 @@ export async function searchItems(userId: string, input: unknown) {
   const query = searchQuerySchema.parse(input);
   if (!query.q)
     return { items: [], total: 0, page: query.page, pageSize: query.limit };
+  const exactKey = /^SYN-\d+$/i.test(query.q) ? query.q.toUpperCase() : null;
+  if (exactKey) {
+    const item = await prisma.item.findFirst({ where: { userId, itemKey: exactKey, deletedAt: null }, include: { tags: { include: { tag: true } } } });
+    if (item) return { items: [{ id: item.id, itemKey: item.itemKey, title: item.title, type: item.type, status: item.status, inbox: item.inbox, content: item.content, snippet: plainSearchSnippet(item.content), url: item.url, dueAt: item.dueAt?.toISOString() ?? null, completedAt: item.completedAt?.toISOString() ?? null, archivedAt: item.archivedAt?.toISOString() ?? null, createdAt: item.createdAt.toISOString(), updatedAt: item.updatedAt.toISOString(), version: item.version, tags: item.tags.map((join) => ({ id: join.tag.id, name: join.tag.name })) }], total: 1, page: 1, pageSize: query.limit };
+  }
   // Parameters are bound by Prisma; no user text is interpolated into SQL syntax.
   const term = /^[\p{L}\p{N}_]+$/u.test(query.q)
     ? Prisma.sql`to_tsquery('simple', ${query.q + ":*"})`
@@ -75,6 +80,7 @@ export async function searchItems(userId: string, input: unknown) {
       return [
         {
           id: item.id,
+          itemKey: item.itemKey,
           title: item.title,
           type: item.type,
           status: item.status,

@@ -49,8 +49,7 @@
   color: var(--text-muted);
 }
 .graph-scope,
-.graph-view-mode,
-.graph-depth {
+.graph-view-mode {
   display: flex;
   align-items: center;
   gap: 2px;
@@ -61,8 +60,7 @@
   border-right: 1px solid var(--border);
 }
 .graph-scope button,
-.graph-view-mode button,
-.graph-depth button {
+.graph-view-mode button {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -76,28 +74,14 @@
   font-size: 12px;
 }
 .graph-scope button:hover,
-.graph-view-mode button:hover,
-.graph-depth button:hover {
+.graph-view-mode button:hover {
   background: var(--surface-hover);
   color: var(--text);
 }
 .graph-scope button[aria-pressed="true"],
-.graph-view-mode button[aria-pressed="true"],
-.graph-depth button[aria-pressed="true"] {
+.graph-view-mode button[aria-pressed="true"] {
   color: var(--text);
   background: var(--surface-active);
-}
-.graph-depth {
-  gap: 1px;
-}
-.graph-depth > span {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-right: 5px;
-}
-.graph-depth button {
-  min-width: 26px;
-  padding: 5px;
 }
 .graph-filter-menu {
   position: relative;
@@ -553,9 +537,6 @@
   .graph-scope {
     padding-right: 7px;
   }
-  .graph-depth > span {
-    display: none;
-  }
   .graph-view-mode button > svg {
     display: none;
   }
@@ -585,9 +566,6 @@
   .graph-scope {
     order: 1;
   }
-  .graph-depth {
-    order: 2;
-  }
   .graph-view-mode {
     order: 3;
     margin-left: auto;
@@ -602,9 +580,6 @@
   .graph-view-mode button {
     padding-inline: 8px;
     font-size: 11px;
-  }
-  .graph-depth button {
-    min-width: 23px;
   }
   .graph-filter-popover {
     right: -37px;

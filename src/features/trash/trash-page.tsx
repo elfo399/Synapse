@@ -17,6 +17,8 @@ type Operation = {
   rootItemId: string;
   includeContained: boolean;
   deletedAt: string;
+  expiresAt: string;
+  daysRemaining: number;
   items: TrashItem[];
 };
 type Preview = {
@@ -288,6 +290,7 @@ export function TrashPage() {
                         timeStyle: "short",
                       }).format(new Date(operation.deletedAt))}
                     </p>
+                    <small className={operation.daysRemaining <= 3 ? "trash-expiry urgent" : "trash-expiry"}>Eliminazione definitiva prevista il {new Intl.DateTimeFormat("it-IT", { dateStyle: "medium" }).format(new Date(operation.expiresAt))} ? {operation.daysRemaining} giorni rimanenti</small>
                   </div>
                   <div className="trash-operation-actions">
                     <button

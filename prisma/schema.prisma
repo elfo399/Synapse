@@ -103,6 +103,10 @@ model User {
   embeddingChunks ItemEmbeddingChunk[]
   embeddingJobs AiEmbeddingJob[]
   trashOperations TrashOperation[]
+  itemRevisions ItemRevision[]
+  itemCounter UserItemCounter?
+  settings UserSettings?
+  focusState FocusState?
 }
 
 model AiConversation {
@@ -202,6 +206,7 @@ model Item {
   trashOperationId String?
   trashOperation TrashOperation? @relation(fields: [trashOperationId], references: [id], onDelete: SetNull)
   version Int @default(1)
+  itemKey String? @db.VarChar(32)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   searchVector Unsupported("tsvector")? @default(dbgenerated())
@@ -214,7 +219,9 @@ model Item {
   timeBlocks TimeBlock[]
   embeddingChunks ItemEmbeddingChunk[]
   embeddingJobs AiEmbeddingJob[]
+  revisions ItemRevision[]
   @@unique([userId, id])
+  @@unique([userId, itemKey])
   @@index([userId, titleNormalized])
   @@index([userId, archivedAt, updatedAt(sort: Desc)])
   @@index([userId, deletedAt, updatedAt(sort: Desc)])
@@ -231,9 +238,52 @@ model TrashOperation {
   rootItemId String
   includeContained Boolean @default(false)
   deletedAt DateTime @default(now())
+  purgeAfter DateTime?
   items Item[]
   @@index([userId, deletedAt(sort: Desc)])
   @@index([userId, rootItemId])
+  @@index([userId, purgeAfter])
+}
+
+model UserSettings {
+  userId String @id
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trashRetentionDays Int @default(30)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UserItemCounter {
+  userId String @id
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nextNumber Int @default(1)
+  updatedAt DateTime @updatedAt
+}
+
+model ItemRevision {
+  id String @id @default(cuid())
+  userId String
+  itemId String
+  revisionNumber Int
+  snapshot Json
+  comment String? @db.VarChar(500)
+  restoredFromRevisionId String?
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item Item @relation(fields: [userId, itemId], references: [userId, id], onDelete: Cascade)
+  @@unique([itemId, revisionNumber])
+  @@index([userId, itemId, createdAt(sort: Desc)])
+}
+
+model FocusState {
+  userId String @id
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  timeBlockId String
+  timeBlock TimeBlock @relation(fields: [timeBlockId], references: [id], onDelete: Cascade)
+  paused Boolean @default(false)
+  startedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([timeBlockId])
 }
 
 model ItemEmbeddingChunk {
@@ -291,6 +341,7 @@ model TimeBlock {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   sessions TimeSession[]
+  focusStates FocusState[]
   @@index([userId, startsAt])
   @@index([userId, endsAt])
   @@index([userId, itemId])

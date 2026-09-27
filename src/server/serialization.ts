@@ -11,6 +11,7 @@ export const relationInclude = {
     select: {
       id: true,
       title: true,
+      itemKey: true,
       type: true,
       archivedAt: true,
       status: true,
@@ -23,6 +24,7 @@ export const relationInclude = {
     select: {
       id: true,
       title: true,
+      itemKey: true,
       type: true,
       archivedAt: true,
       status: true,
@@ -53,6 +55,7 @@ export function serializeItem(item: StoredItem): ItemSummary {
     updatedAt: item.updatedAt.toISOString(),
     archivedAt: item.archivedAt?.toISOString() ?? null,
     version: item.version,
+    itemKey: item.itemKey,
     tags: item.tags.map(({ tag }) => ({ id: tag.id, name: tag.name })),
     _count: item._count,
     attachments: item.attachments.map((file) => ({

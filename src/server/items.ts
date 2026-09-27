@@ -26,6 +26,7 @@ import {
   syncWikiLinks,
 } from "./wikilinks";
 import { queueItemEmbedding } from "./ai-index";
+import { createItemRevision } from "./revisions";
 
 async function setTags(
   tx: Prisma.TransactionClient,
@@ -152,6 +153,7 @@ export async function listItems(
     ...(query.q
       ? {
           OR: [
+            { itemKey: { equals: query.q.trim().toUpperCase() } },
             { title: { contains: query.q, mode: "insensitive" } },
             { content: { contains: query.q, mode: "insensitive" } },
             {
@@ -192,6 +194,18 @@ export async function createItem(
   );
 }
 
+export async function allocateItemKey(
+  tx: Prisma.TransactionClient,
+  userId: string,
+): Promise<string> {
+  const keyRows = await tx.$queryRaw<{ number: number }[]>`
+    INSERT INTO "UserItemCounter" ("userId", "nextNumber") VALUES (${userId}, 2)
+    ON CONFLICT ("userId") DO UPDATE SET "nextNumber" = "UserItemCounter"."nextNumber" + 1
+    RETURNING "nextNumber" - 1 AS number
+  `;
+  return `SYN-${Number(keyRows[0]?.number ?? 1)}`;
+}
+
 export async function createItemInTransaction(
   tx: Prisma.TransactionClient,
   userId: string,
@@ -206,11 +220,13 @@ export async function createItemInTransaction(
     );
   if (input.type === "BOOKMARK" && !input.url)
     throw new HttpError(400, "I preferiti richiedono un URL.");
+  const itemKey = await allocateItemKey(tx, userId);
   const item = await tx.item.create({
     data: {
       userId,
       title: input.title,
       titleNormalized: normalizeIdentity(input.title),
+      itemKey,
       content: input.content,
       type: input.type,
       status,
@@ -226,6 +242,7 @@ export async function createItemInTransaction(
   await syncWikiLinks(tx, userId, item.id, input.content);
   await resolveNewTitle(tx, userId, item.id, item.titleNormalized);
   await queueItemEmbedding(tx, userId, item.id, item.version);
+  await createItemRevision(tx, userId, item.id);
   return getItem(userId, item.id, tx);
 }
 
@@ -271,6 +288,16 @@ export async function updateItem(
     }
     const title = input.title ?? previous.title;
     const normalized = normalizeIdentity(title);
+    const hasItemChange =
+      title !== previous.title ||
+      (input.content !== undefined && input.content !== previous.content) ||
+      type !== previous.type || status !== previous.status ||
+      (input.inbox !== undefined && input.inbox !== previous.inbox) ||
+      url !== previous.url ||
+      (input.dueAt !== undefined && (input.dueAt ? new Date(input.dueAt).getTime() : null) !== (previous.dueAt?.getTime() ?? null)) ||
+      (input.archived !== undefined && Boolean(previous.archivedAt) !== input.archived) ||
+      input.tags !== undefined || input.parentIds !== undefined || input.primaryParentId !== undefined;
+    if (!hasItemChange) return getItem(userId, id, tx);
     const updated = await tx.item.update({
       where: { userId_id: { userId, id } },
       data: {
@@ -319,6 +346,7 @@ export async function updateItem(
       await propagateTitleRename(tx, userId, previous.titleNormalized, title);
     await resolveNewTitle(tx, userId, id, normalized);
     await queueItemEmbedding(tx, userId, id, updated.version);
+    await createItemRevision(tx, userId, id, { comment: input.revisionComment });
     return getItem(userId, id, tx);
   });
 }
@@ -532,14 +560,17 @@ export async function moveItemToTrash(
         "Il piano di eliminazione non ? pi? aggiornato. Controlla di nuovo gli elementi coinvolti.",
       );
     const ids = preview ? preview.delete.map((entry) => entry.id) : [id];
+    const deletedAt = new Date();
+    const retention = await tx.userSettings.upsert({ where: { userId }, create: { userId }, update: {}, select: { trashRetentionDays: true } });
     const operation = await tx.trashOperation.create({
       data: {
         userId,
         rootItemId: id,
         includeContained: Boolean(options.includeContained),
+        deletedAt,
+        purgeAfter: new Date(deletedAt.getTime() + retention.trashRetentionDays * 86_400_000),
       },
     });
-    const deletedAt = new Date();
     await tx.item.updateMany({
       where: { userId, id: { in: ids }, deletedAt: null },
       data: { deletedAt, trashOperationId: operation.id },

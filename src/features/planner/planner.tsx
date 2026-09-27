@@ -18,6 +18,7 @@ import {
   Settings2,
   Save,
   Sparkles,
+  Square,
   Trash2,
 } from "lucide-react";
 import type {
@@ -359,6 +360,7 @@ export function Planner({
           initialHour={seed?.hour}
           seed={seed}
           categories={data?.categories ?? []}
+          tasks={data?.tasks ?? []}
           onClose={() => {
             setEditor(null);
             setSeed(null);
@@ -1233,6 +1235,7 @@ function BlockEditor({
   initialHour = 9,
   seed,
   categories,
+  tasks,
   onClose,
   onSaved,
   onFocus,
@@ -1242,6 +1245,7 @@ function BlockEditor({
   initialHour?: number;
   seed: EditorSeed | null;
   categories: PlannerCategorySummary[];
+  tasks: PlannerData["tasks"];
   onClose: () => void;
   onSaved: () => void;
   onFocus: (block: TimeBlockSummary) => void;
@@ -1264,6 +1268,12 @@ function BlockEditor({
   );
   const [description, setDescription] = useState(block?.description ?? "");
   const [itemId, setItemId] = useState(block?.itemId ?? seed?.itemId ?? "");
+  const taskLabel = (task: PlannerData["tasks"][number]) =>
+    `${task.itemKey ?? "SYN"} · ${task.title}${task.parentTitles?.length ? ` — ${task.parentTitles.join(", ")}` : ""}`;
+  const [taskQuery, setTaskQuery] = useState(() => {
+    const selected = tasks.find((task) => task.id === (block?.itemId ?? seed?.itemId));
+    return selected ? taskLabel(selected) : "";
+  });
   const [recurring, setRecurring] = useState(Boolean(block?.recurrence));
   const [saving, setSaving] = useState(false);
   async function save() {
@@ -1360,15 +1370,24 @@ function BlockEditor({
           </select>
         </label>
         <label>
-          Collega un elemento Synapse{" "}
-          <span className="field-hint">
-            ID opzionale: puoi copiare l’ID dalla pagina dell’elemento.
-          </span>
+          Collega un’attività
+          <span className="field-hint" id="planner-task-hint">Opzionale. Cerca per titolo, codice SYN o progetto.</span>
           <input
-            value={itemId}
-            onChange={(event) => setItemId(event.target.value)}
-            placeholder="ID di nota, attività o progetto"
+            list="planner-task-options"
+            value={taskQuery}
+            aria-describedby="planner-task-hint"
+            placeholder="Cerca un’attività…"
+            onChange={(event) => {
+              const value = event.target.value;
+              setTaskQuery(value);
+              const task = tasks.find((candidate) => taskLabel(candidate) === value);
+              setItemId(task?.id ?? "");
+            }}
           />
+          <datalist id="planner-task-options">
+            {tasks.map((task) => <option value={taskLabel(task)} key={task.id} />)}
+          </datalist>
+          {itemId ? <small className="field-hint">Attività collegata.</small> : null}
         </label>
         <label>
           Descrizione
@@ -1430,11 +1449,12 @@ function FocusMode({
 }) {
   const { notify } = useWorkspace();
   const [running, setRunning] = useState(block.status === "IN_PROGRESS");
-  async function toggle(action: "start" | "stop" | "complete") {
+  const [replaceFocus, setReplaceFocus] = useState(false);
+  async function toggle(action: "start" | "stop" | "complete", replace = false) {
     try {
       await api(`/api/planner/${block.id.split(":")[0]}/focus`, {
         method: "POST",
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, replace }),
       });
       setRunning(action === "start");
       notify(
@@ -1445,11 +1465,22 @@ function FocusMode({
             : "Focus in pausa.",
       );
       onSaved();
+      if (action === "start") {
+        window.dispatchEvent(new Event("synapse:focus-changed"));
+        try { window.localStorage.setItem("synapse:focus-changed", String(Date.now())); } catch { /* optional cross-tab sync */ }
+        onClose();
+      }
     } catch (error) {
-      notify(errorMessage(error));
+      const message = errorMessage(error);
+      if (action === "start" && message.includes("sessione Focus")) {
+        setReplaceFocus(true);
+        return;
+      }
+      notify(message);
     }
   }
   return (
+    <>
     <Modal
       open
       onOpenChange={(open) => !open && onClose()}
@@ -1486,14 +1517,27 @@ function FocusMode({
           )}
           <button
             className="button button-secondary"
-            onClick={() => toggle("complete")}
+            onClick={() => toggle("stop")}
           >
-            <Check size={16} />
+            <Square size={16} />
             Termina
           </button>
         </div>
       </div>
     </Modal>
+    <Modal
+      open={replaceFocus}
+      onOpenChange={(open) => !open && setReplaceFocus(false)}
+      title="È già attiva una sessione Focus"
+      description="Il tempo già registrato resta salvato."
+    >
+      <p>Vuoi mettere in pausa la sessione precedente e avviare questa?</p>
+      <div className="dialog-footer">
+        <button className="button button-secondary" onClick={() => setReplaceFocus(false)}>Annulla</button>
+        <button className="button button-primary" onClick={() => { setReplaceFocus(false); void toggle("start", true); }}>Metti in pausa e avvia</button>
+      </div>
+    </Modal>
+    </>
   );
 }
 function hours(minutes: number) {

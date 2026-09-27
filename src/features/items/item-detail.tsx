@@ -13,6 +13,7 @@ import {
   Pencil,
   Check,
   CheckCheck,
+  Clock3,
   ExternalLink,
   LoaderCircle,
   Plus,
@@ -48,6 +49,7 @@ import { AreaWorkspace, ProjectWorkspace } from "./role-workspaces";
 import { TransferActions } from "./transfer-actions";
 import { AdvancedDeletionDialog } from "./advanced-deletion-dialog";
 import { FloatingItemActions } from "./floating-item-actions";
+import { RevisionHistory } from "./revision-history";
 import "./document.css";
 import "./detail-workspace.css";
 
@@ -85,6 +87,8 @@ function ItemEditor({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [revisionComment, setRevisionComment] = useState("");
   const [createTitle, setCreateTitle] = useState<string | null>(null);
   const [unsavedAction, setUnsavedAction] = useState<
     "discard" | "archive" | "trash" | null
@@ -174,11 +178,13 @@ function ItemEditor({
             url: type === "BOOKMARK" ? url : null,
             dueAt: dueAt ? new Date(`${dueAt}T12:00:00`).toISOString() : null,
             version,
+            ...(revisionComment.trim() ? { revisionComment: revisionComment.trim() } : {}),
             ...(process ? { inbox: false } : {}),
           }),
         },
       );
       setVersion(result.item.version);
+      setRevisionComment("");
       router.replace(getItemHref(result.item), { scroll: false });
       setTags(result.item.tags.map((tag) => tag.name).join(", "));
       changed();
@@ -408,6 +414,7 @@ function ItemEditor({
               </>
             )}
           </span>
+          <button className="button button-secondary compact" onClick={() => setHistoryOpen(true)}><Clock3 size={14} /> Cronologia</button>
           <button
             className="button button-secondary compact"
             disabled={busy || !title.trim() || !dirty}
@@ -454,6 +461,7 @@ function ItemEditor({
         <header className="document-title-area">
           <div className="document-meta">
             <TypeBadge type={type} />
+            {item.itemKey && <button className="item-key-badge" type="button" title="Copia identificativo" onClick={() => { void navigator.clipboard?.writeText(item.itemKey!); notify("Identificativo copiato."); }}>{item.itemKey}</button>}
             <span>Modificato {dateLabel(item.updatedAt)}</span>
           </div>
           <label className="sr-only" htmlFor="item-title">
@@ -720,6 +728,7 @@ function ItemEditor({
           </aside>
         </div>
       </article>
+      {dirty && <label className="revision-comment"><span>Commento versione (facoltativo)</span><input value={revisionComment} maxLength={500} onChange={(event) => setRevisionComment(event.target.value)} placeholder="Es. Aggiornata la documentazione Docker" /></label>}
       <FloatingItemActions
         dirty={dirty}
         busy={busy}
@@ -736,7 +745,9 @@ function ItemEditor({
         onDiscard={() => setUnsavedAction("discard")}
         onArchive={requestArchive}
         onTrash={requestTrash}
+        onHistory={() => setHistoryOpen(true)}
       />
+      <RevisionHistory itemId={item.id} version={version} open={historyOpen} onOpenChange={setHistoryOpen} onRestored={() => { changed(); reload(); notify("Versione ripristinata."); }} />
       <Modal
         open={unsavedAction !== null}
         onOpenChange={(open) => {

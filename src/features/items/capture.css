@@ -244,3 +244,5 @@
     padding: 14px;
   }
 }
+
+.task-capture-fields{display:grid;grid-template-columns:1fr 1fr auto;align-items:end;gap:10px}.task-capture-fields label{display:grid;gap:5px;color:var(--text-muted);font-size:12px}.task-capture-fields input,.task-capture-fields select{min-height:38px}@media(max-width:600px){.task-capture-fields{grid-template-columns:1fr}.task-capture-fields .text-link{justify-self:start}}

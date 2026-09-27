@@ -29,8 +29,15 @@ const itemSelect = {
   type: true,
   status: true,
   dueAt: true,
+  itemKey: true,
 } as const;
-const categorySelect = {
+const taskSelect = {
+  ...itemSelect,
+  outgoing: {
+    where: { relationType: "PARENT" },
+    select: { target: { select: { title: true, type: true } } },
+  },
+} as const;const categorySelect = {
   id: true,
   name: true,
   color: true,
@@ -77,6 +84,7 @@ function serialized(block: {
     type: ItemType;
     status: ItemStatus;
     dueAt: Date | null;
+    itemKey: string | null;
   } | null;
   sessions?: { startedAt: Date; endedAt: Date | null }[];
 }): TimeBlockSummary {
@@ -221,8 +229,8 @@ export async function getPlanner(
         { dueAt: { sort: "asc", nulls: "last" } },
         { updatedAt: "desc" },
       ],
-      take: 12,
-      select: itemSelect,
+      take: 100,
+      select: taskSelect,
     }),
     prisma.plannerTemplate.findMany({
       where: { userId },
@@ -260,8 +268,9 @@ export async function getPlanner(
   }
   return {
     blocks,
-    tasks: tasks.map((task) => ({
+    tasks: tasks.map(({ outgoing, ...task }) => ({
       ...task,
+      parentTitles: outgoing.map(({ target }) => target.title),
       dueAt: task.dueAt?.toISOString() ?? null,
       content: "",
       inbox: false,
@@ -453,41 +462,132 @@ export async function deleteTimeBlock(userId: string, id: string) {
   const result = await prisma.timeBlock.deleteMany({ where: { userId, id } });
   if (!result.count) throw new HttpError(404, "Blocco non trovato.");
 }
-export async function startFocus(userId: string, id: string) {
+function focusSummary(state: {
+  paused: boolean;
+  startedAt: Date;
+  timeBlock: {
+    id: string;
+    title: string;
+    startsAt: Date;
+    endsAt: Date;
+    category: string;
+    timezone: string;
+    item: { id: string; title: string; itemKey: string | null; deletedAt: Date | null } | null;
+    sessions: { startedAt: Date; endedAt: Date | null }[];
+  };
+}) {
+  const now = new Date();
+  const nowMs = now.getTime();
+  const seconds = (session: { startedAt: Date; endedAt: Date | null }) =>
+    Math.max(0, Math.floor(((session.endedAt?.getTime() ?? nowMs) - session.startedAt.getTime()) / 1000));
+  const localDay = (date: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: state.timeBlock.timezone || "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+  const today = localDay(now);
+  const totalSeconds = state.timeBlock.sessions.reduce((total, session) => total + seconds(session), 0);
+  const currentFocusSeconds = state.timeBlock.sessions
+    .filter((session) => session.startedAt >= state.startedAt)
+    .reduce((total, session) => total + seconds(session), 0);
+  const todaySeconds = state.timeBlock.sessions
+    .filter((session) => localDay(session.startedAt) === today)
+    .reduce((total, session) => total + seconds(session), 0);
+  const plannedSeconds = Math.max(0, Math.floor((state.timeBlock.endsAt.getTime() - state.timeBlock.startsAt.getTime()) / 1000));
+  return {
+    paused: state.paused,
+    status: state.paused ? "PAUSED" : "RUNNING",
+    startedAt: state.startedAt.toISOString(),
+    accumulatedSeconds: currentFocusSeconds,
+    currentFocusSeconds,
+    totalSeconds,
+    todaySeconds,
+    plannedSeconds,
+    measuredAt: now.toISOString(),
+    block: {
+      id: state.timeBlock.id,
+      title: state.timeBlock.title,
+      startsAt: state.timeBlock.startsAt.toISOString(),
+      endsAt: state.timeBlock.endsAt.toISOString(),
+      category: state.timeBlock.category,
+      item: state.timeBlock.item && !state.timeBlock.item.deletedAt
+        ? { id: state.timeBlock.item.id, title: state.timeBlock.item.title, itemKey: state.timeBlock.item.itemKey }
+        : null,
+    },
+    segments: state.timeBlock.sessions.filter((session) => session.startedAt >= state.startedAt).length,
+  };
+}
+const focusInclude = {
+  timeBlock: {
+    include: {
+      item: { select: { id: true, title: true, itemKey: true, deletedAt: true } },
+      sessions: { orderBy: { startedAt: "asc" as const }, select: { startedAt: true, endedAt: true } },
+    },
+  },
+} as const;
+
+export async function getActiveFocus(userId: string, db: Prisma.TransactionClient | typeof prisma = prisma) {
+  const state = await db.focusState.findUnique({ where: { userId }, include: focusInclude });
+  return state ? focusSummary(state) : null;
+}
+
+export async function startFocus(userId: string, id: string, replace = false) {
   return withUserTransaction(userId, async (tx) => {
-    const block = await tx.timeBlock.findFirst({ where: { userId, id } });
-    if (!block) throw new HttpError(404, "Blocco non trovato.");
-    await tx.timeSession.updateMany({
-      where: { userId, endedAt: null },
-      data: { endedAt: new Date() },
+    const startedAt = new Date();
+    const [block, active] = await Promise.all([
+      tx.timeBlock.findFirst({ where: { userId, id }, include: { item: { select: { deletedAt: true } } } }),
+      tx.focusState.findUnique({ where: { userId } }),
+    ]);
+    if (!block || block.item?.deletedAt) throw new HttpError(404, "Il blocco o l?attivit? collegata non ? disponibile.");
+    if (active && active.timeBlockId !== id && !replace)
+      throw new HttpError(409, "? gi? attiva una sessione Focus.");
+    if (active && active.timeBlockId !== id) {
+      await tx.timeSession.updateMany({ where: { userId, timeBlockId: active.timeBlockId, endedAt: null }, data: { endedAt: startedAt } });
+      await tx.timeBlock.updateMany({ where: { userId, id: active.timeBlockId }, data: { status: "PLANNED" } });
+    }
+    if (!active || active.timeBlockId !== id || active.paused) {
+      await tx.timeSession.create({ data: { userId, timeBlockId: id, startedAt } });
+    }
+    await tx.focusState.upsert({
+      where: { userId },
+      create: { userId, timeBlockId: id, paused: false, startedAt },
+      update: active && active.timeBlockId !== id
+        ? { timeBlockId: id, paused: false, startedAt }
+        : { timeBlockId: id, paused: false },
     });
-    const session = await tx.timeSession.create({
-      data: { userId, timeBlockId: id, startedAt: new Date() },
-    });
-    await tx.timeBlock.update({
-      where: { id },
-      data: { status: "IN_PROGRESS" },
-    });
-    return { id: session.id, startedAt: session.startedAt.toISOString() };
+    await tx.timeBlock.update({ where: { id }, data: { status: "IN_PROGRESS" } });
+    return getActiveFocus(userId, tx);
   });
 }
-export async function stopFocus(userId: string, id: string, complete = false) {
+
+export async function pauseFocus(userId: string) {
   return withUserTransaction(userId, async (tx) => {
-    const session = await tx.timeSession.findFirst({
-      where: { userId, timeBlockId: id, endedAt: null },
-      orderBy: { startedAt: "desc" },
-    });
-    if (session)
-      await tx.timeSession.update({
-        where: { id: session.id },
-        data: { endedAt: new Date() },
-      });
-    await tx.timeBlock.updateMany({
-      where: { userId, id },
-      data: { status: complete ? "COMPLETED" : "PLANNED" },
-    });
+    const active = await tx.focusState.findUnique({ where: { userId } });
+    if (!active) throw new HttpError(404, "Nessuna sessione Focus attiva.");
+    if (!active.paused) await tx.timeSession.updateMany({ where: { userId, timeBlockId: active.timeBlockId, endedAt: null }, data: { endedAt: new Date() } });
+    await tx.focusState.update({ where: { userId }, data: { paused: true } });
+    return getActiveFocus(userId, tx);
   });
 }
+
+export async function resumeFocus(userId: string) {
+  return withUserTransaction(userId, async (tx) => {
+    const active = await tx.focusState.findUnique({ where: { userId } });
+    if (!active) throw new HttpError(404, "Nessuna sessione Focus da riprendere.");
+    if (active.paused) await tx.timeSession.create({ data: { userId, timeBlockId: active.timeBlockId, startedAt: new Date() } });
+    await tx.focusState.update({ where: { userId }, data: { paused: false } });
+    await tx.timeBlock.updateMany({ where: { userId, id: active.timeBlockId }, data: { status: "IN_PROGRESS" } });
+    return getActiveFocus(userId, tx);
+  });
+}
+
+export async function stopFocus(userId: string, id?: string, complete = false) {
+  return withUserTransaction(userId, async (tx) => {
+    const active = await tx.focusState.findUnique({ where: { userId } });
+    const blockId = id ?? active?.timeBlockId;
+    if (!blockId) throw new HttpError(404, "Nessuna sessione Focus attiva.");
+    await tx.timeSession.updateMany({ where: { userId, timeBlockId: blockId, endedAt: null }, data: { endedAt: new Date() } });
+    await tx.timeBlock.updateMany({ where: { userId, id: blockId }, data: { status: complete ? "COMPLETED" : "PLANNED" } });
+    if (active?.timeBlockId === blockId) await tx.focusState.delete({ where: { userId } });
+  });
+}
+
 export async function saveTemplate(userId: string, raw: unknown) {
   const input = z
     .object({

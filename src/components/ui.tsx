@@ -180,7 +180,7 @@ export function ItemRow({
         <TypeIcon type={item.type} />
       </span>
       <Link href={getItemHref(item)} className="item-row-main">
-        <span className="item-row-title">{item.title}</span>
+        <span className="item-row-title">{item.itemKey && <small className="item-row-key">{item.itemKey}</small>}{item.title}</span>
         <span className="item-row-meta">
           {item.snippet ||
             item.content?.replace(/[#*`\[\]]/g, "").slice(0, 100) ||
