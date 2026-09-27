@@ -90,7 +90,6 @@ export const DEFAULT_AI_MODEL =
 const MAX_HISTORY_MESSAGES = 12;
 const MAX_TOOL_CALLS = 3;
 const MAX_TOOL_LIMIT = 25;
-let activeGeneration = false;
 
 function traceAi(
   event: string,
@@ -890,14 +889,13 @@ export async function beginAutomaticGeneration(args: {
   conversationId: string;
   content: string;
   options?: AiChatOptions;
+  // Queue workers pass the already persisted question. Keeping this path here
+  // makes planning/tool execution identical for the HTTP and worker callers.
+  userMessageId?: string;
 }) {
-  if (activeGeneration)
-    throw new Error("Attendi il completamento della risposta in corso.");
   const content = args.content.trim();
   if (!content) throw new Error("Scrivi un messaggio prima di inviare.");
-  activeGeneration = true;
 
-  try {
     const conversation = await prisma.aiConversation.findFirst({
       where: { id: args.conversationId, userId: args.userId },
     });
@@ -920,7 +918,11 @@ export async function beginAutomaticGeneration(args: {
       reasoning: args.options?.reasoning ?? false,
     };
     const historyRows = await prisma.aiMessage.findMany({
-      where: { conversationId: conversation.id, state: "COMPLETE" },
+      where: {
+        conversationId: conversation.id,
+        state: "COMPLETE",
+        ...(args.userMessageId ? { id: { not: args.userMessageId } } : {}),
+      },
       select: { role: true, content: true },
       orderBy: { createdAt: "desc" },
       take: MAX_HISTORY_MESSAGES,
@@ -975,14 +977,21 @@ export async function beginAutomaticGeneration(args: {
       });
       conversation.title = titleFromFirstMessage(content);
     }
-    const userMessage = await prisma.aiMessage.create({
-      data: {
-        conversationId: conversation.id,
-        role: "USER",
-        content,
-        options: options as unknown as Prisma.InputJsonValue,
-      },
-    });
+    const userMessage = args.userMessageId
+      ? await prisma.aiMessage.findFirstOrThrow({
+          where: {
+            id: args.userMessageId,
+            conversationId: conversation.id,
+          },
+        })
+      : await prisma.aiMessage.create({
+          data: {
+            conversationId: conversation.id,
+            role: "USER",
+            content,
+            options: options as unknown as Prisma.InputJsonValue,
+          },
+        });
     if (execution.activeProjectId !== conversation.activeProjectId) {
       await prisma.aiConversation.update({
         where: { id: conversation.id },
@@ -999,10 +1008,6 @@ export async function beginAutomaticGeneration(args: {
       strategy: strategyFromTools(execution.used),
       history,
     };
-  } catch (error) {
-    activeGeneration = false;
-    throw error;
-  }
 }
 
 export async function openRoutedOllamaStream(
@@ -1070,12 +1075,7 @@ export async function completeGeneration(args: {
       data: { updatedAt: new Date() },
     }),
   ]);
-  activeGeneration = false;
   return { message, sources: persistedSources };
-}
-
-export function abortGeneration() {
-  activeGeneration = false;
 }
 
 // Compatibility for the API surface used by existing callers. Both paths use the same Qwen final response.
@@ -1139,7 +1139,16 @@ export async function listConversations(userId: string) {
 export async function getConversation(userId: string, id: string) {
   const conversation = await prisma.aiConversation.findFirst({
     where: { id, userId },
-    include: { messages: { orderBy: { createdAt: "asc" } } },
+    include: {
+      messages: { orderBy: { createdAt: "asc" } },
+      generations: {
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true, assistantMessageId: true, state: true, phase: true,
+          content: true, error: true, sources: true, createdAt: true, updatedAt: true,
+        },
+      },
+    },
   });
   if (!conversation) throw new HttpError(404, "Conversazione non trovata.");
   return conversation;
@@ -1186,8 +1195,211 @@ export async function updateConversationPreferences(
   if (!updated.count) throw new HttpError(404, "Conversazione non trovata.");
 }
 export async function deleteConversation(userId: string, id: string) {
+  await prisma.aiGeneration.updateMany({
+    where: {
+      userId,
+      conversationId: id,
+      state: { in: ["QUEUED", "PLANNING", "GENERATING"] },
+    },
+    data: { state: "CANCELED", phase: "CANCELED", cancelRequestedAt: new Date(), finishedAt: new Date() },
+  });
   const deleted = await prisma.aiConversation.deleteMany({
     where: { id, userId },
   });
   if (!deleted.count) throw new HttpError(404, "Conversazione non trovata.");
+}
+
+export type PersistedGeneration = {
+  id: string;
+  conversationId: string;
+  assistantMessageId: string;
+  state: string;
+  phase: string;
+  content: string;
+  sources: AiSource[];
+  error: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+function sourcesForStorage(content: string, sources: AiSource[]) {
+  const cited = new Set([...content.matchAll(/\[S\d+\]/g)].map((match) => match[0]));
+  return sources.map((source) => ({
+    ...source,
+    usage: source.citation && cited.has(source.citation) ? "CITED" : "CONSULTED",
+  }));
+}
+
+export async function queueGeneration(args: {
+  userId: string;
+  conversationId: string;
+  content: string;
+  options: AiChatOptions;
+  idempotencyKey: string;
+}) {
+  const content = args.content.trim();
+  if (!content) throw new HttpError(400, "Scrivi un messaggio prima di inviare.");
+  const existing = await prisma.aiGeneration.findUnique({
+    where: { userId_idempotencyKey: { userId: args.userId, idempotencyKey: args.idempotencyKey } },
+  });
+  if (existing) return existing;
+  return prisma.$transaction(async (tx) => {
+    const conversation = await tx.aiConversation.findFirst({
+      where: { id: args.conversationId, userId: args.userId },
+    });
+    if (!conversation) throw new HttpError(404, "Conversazione non trovata.");
+    const duplicate = await tx.aiGeneration.findUnique({
+      where: { userId_idempotencyKey: { userId: args.userId, idempotencyKey: args.idempotencyKey } },
+    });
+    if (duplicate) return duplicate;
+    const options = { webSearch: Boolean(args.options.webSearch), reasoning: Boolean(args.options.reasoning) };
+    const userMessage = await tx.aiMessage.create({
+      data: { conversationId: conversation.id, role: "USER", content, options: options as Prisma.InputJsonValue },
+    });
+    const assistantMessage = await tx.aiMessage.create({
+      data: { conversationId: conversation.id, role: "ASSISTANT", content: "", state: "GENERATING" },
+    });
+    if (conversation.title === "Nuova conversazione") {
+      await tx.aiConversation.update({
+        where: { id: conversation.id },
+        data: {
+          title: titleFromFirstMessage(content),
+          webSearchEnabled: options.webSearch,
+          reasoningEnabled: options.reasoning,
+          updatedAt: new Date(),
+        },
+      });
+    } else {
+      await tx.aiConversation.update({
+        where: { id: conversation.id },
+        data: { webSearchEnabled: options.webSearch, reasoningEnabled: options.reasoning, updatedAt: new Date() },
+      });
+    }
+    return tx.aiGeneration.create({
+      data: {
+        userId: args.userId,
+        conversationId: conversation.id,
+        userMessageId: userMessage.id,
+        assistantMessageId: assistantMessage.id,
+        idempotencyKey: args.idempotencyKey,
+        options: options as Prisma.InputJsonValue,
+      },
+    });
+  });
+}
+
+export async function getGeneration(userId: string, id: string): Promise<PersistedGeneration> {
+  const generation = await prisma.aiGeneration.findFirst({ where: { id, userId } });
+  if (!generation) throw new HttpError(404, "Generazione non trovata.");
+  return { ...generation, sources: Array.isArray(generation.sources) ? generation.sources as AiSource[] : [] };
+}
+
+export async function requestGenerationCancel(userId: string, id: string) {
+  const updated = await prisma.aiGeneration.updateMany({
+    where: { id, userId, state: { in: ["QUEUED", "PLANNING", "GENERATING"] } },
+    data: { cancelRequestedAt: new Date(), phase: "CANCELING" },
+  });
+  if (!updated.count) {
+    const exists = await prisma.aiGeneration.findFirst({ where: { id, userId } });
+    if (!exists) throw new HttpError(404, "Generazione non trovata.");
+  }
+}
+
+export async function retryGeneration(userId: string, id: string) {
+  const generation = await prisma.aiGeneration.findFirst({ where: { id, userId } });
+  if (!generation) throw new HttpError(404, "Generazione non trovata.");
+  if (!["FAILED", "INTERRUPTED", "CANCELED"].includes(generation.state)) return generation;
+  return prisma.$transaction(async (tx) => {
+    await tx.aiMessage.update({
+      where: { id: generation.assistantMessageId },
+      data: { content: "", sources: Prisma.DbNull, state: "GENERATING" },
+    });
+    return tx.aiGeneration.update({
+      where: { id: generation.id },
+      data: { state: "QUEUED", phase: "PREPARING", content: "", sources: Prisma.DbNull, error: null, cancelRequestedAt: null, finishedAt: null },
+    });
+  });
+}
+
+export async function markStaleGenerationsInterrupted() {
+  const cutoff = new Date(Date.now() - 2 * 60_000);
+  const stale = await prisma.aiGeneration.findMany({
+    where: { state: { in: ["PLANNING", "GENERATING"] }, updatedAt: { lt: cutoff } },
+    select: { id: true, assistantMessageId: true },
+  });
+  if (!stale.length) return;
+  await prisma.$transaction([
+    prisma.aiGeneration.updateMany({ where: { id: { in: stale.map((item) => item.id) } }, data: { state: "INTERRUPTED", phase: "INTERRUPTED", finishedAt: new Date(), error: "Il worker si è riavviato durante la generazione." } }),
+    prisma.aiMessage.updateMany({ where: { id: { in: stale.map((item) => item.assistantMessageId) } }, data: { state: "INTERRUPTED" } }),
+  ]);
+}
+
+export async function runGenerationJob(id: string, ownerId: string) {
+  const job = await prisma.aiGeneration.findFirst({
+    where: { id, state: "QUEUED", cancelRequestedAt: null },
+  });
+  if (!job) return;
+  const claimed = await prisma.aiGeneration.updateMany({
+    where: { id: job.id, state: "QUEUED", cancelRequestedAt: null },
+    data: { state: "PLANNING", phase: "PREPARING", startedAt: new Date(), attempts: { increment: 1 } },
+  });
+  if (!claimed.count) return;
+  let answer = "";
+  let sources: AiSource[] = [];
+  let lastFlush = Date.now();
+  const cancel = new AbortController();
+  const cancellationPoll = setInterval(async () => {
+    const current = await prisma.aiGeneration.findUnique({ where: { id: job.id }, select: { cancelRequestedAt: true } }).catch(() => null);
+    if (current?.cancelRequestedAt) cancel.abort();
+  }, 650);
+  const heartbeat = setInterval(() => {
+    void prisma.aiGenerationLease.updateMany({ where: { id: 1, ownerId }, data: { expiresAt: new Date(Date.now() + 45_000) } });
+  }, 12_000);
+  const flush = async (force = false) => {
+    if (!force && answer.length < 320 && Date.now() - lastFlush < 1200) return;
+    lastFlush = Date.now();
+    await prisma.$transaction([
+      prisma.aiGeneration.update({ where: { id: job.id }, data: { content: answer } }),
+      prisma.aiMessage.update({ where: { id: job.assistantMessageId }, data: { content: answer } }),
+    ]);
+  };
+  try {
+    const options = job.options as AiChatOptions;
+    const prep = await beginAutomaticGeneration({
+      userId: job.userId,
+      conversationId: job.conversationId,
+      content: (await prisma.aiMessage.findUniqueOrThrow({ where: { id: job.userMessageId }, select: { content: true } })).content,
+      options,
+      userMessageId: job.userMessageId,
+    });
+    await prisma.aiGeneration.update({ where: { id: job.id }, data: { state: "GENERATING", phase: prep.strategy === "KNOWLEDGE" ? "KNOWLEDGE" : prep.strategy === "WEB" || prep.strategy === "COMBINED" ? "WEB" : options.reasoning ? "REASONING" : "GENERATING" } });
+    sources = prep.sources;
+    const upstream = await openRoutedOllamaStream(prep.strategy, (await prisma.aiMessage.findUniqueOrThrow({ where: { id: job.userMessageId }, select: { content: true } })).content, prep.history, sources, cancel.signal, Boolean(options.reasoning), prep.toolContext);
+    const reader = upstream.getReader(); const decoder = new TextDecoder(); let pending = "";
+    try {
+      while (true) {
+        const part = await reader.read(); if (part.done) break;
+        pending += decoder.decode(part.value, { stream: true });
+        const lines = pending.split("\n"); pending = lines.pop() ?? "";
+        for (const line of lines) { if (!line.trim()) continue; const data = JSON.parse(line) as { message?: { content?: string } }; answer += data.message?.content ?? ""; await flush(); }
+      }
+    } finally { reader.releaseLock(); }
+    await flush(true);
+    const storedSources = sourcesForStorage(answer, sources);
+    await prisma.$transaction([
+      prisma.aiMessage.update({ where: { id: job.assistantMessageId }, data: { content: answer, sources: storedSources as Prisma.InputJsonValue, state: "COMPLETE" } }),
+      prisma.aiGeneration.update({ where: { id: job.id }, data: { state: "COMPLETED", phase: "COMPLETED", content: answer, sources: storedSources as Prisma.InputJsonValue, finishedAt: new Date(), error: null } }),
+      prisma.aiConversation.update({ where: { id: job.conversationId }, data: { updatedAt: new Date() } }),
+    ]);
+  } catch (error) {
+    await flush(true).catch(() => undefined);
+    const canceled = cancel.signal.aborted || Boolean((await prisma.aiGeneration.findUnique({ where: { id: job.id }, select: { cancelRequestedAt: true } }))?.cancelRequestedAt);
+    const state = canceled ? "CANCELED" : "FAILED";
+    await prisma.$transaction([
+      prisma.aiMessage.updateMany({ where: { id: job.assistantMessageId }, data: { content: answer, state: canceled ? "INTERRUPTED" : "FAILED" } }),
+      prisma.aiGeneration.updateMany({ where: { id: job.id }, data: { state, phase: state, content: answer, error: canceled ? null : "La generazione si è interrotta. Puoi riprovare.", finishedAt: new Date() } }),
+    ]).catch(() => undefined);
+  } finally {
+    clearInterval(cancellationPoll); clearInterval(heartbeat);
+  }
 }

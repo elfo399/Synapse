@@ -32,6 +32,7 @@ type Msg = {
   id: string;
   role: "USER" | "ASSISTANT";
   content: string;
+  state?: "COMPLETE" | "GENERATING" | "INTERRUPTED" | "FAILED";
   sources?: Source[];
 };
 type Chat = {
@@ -40,6 +41,7 @@ type Chat = {
   webSearchEnabled: boolean;
   reasoningEnabled: boolean;
   messages?: Msg[];
+  generations?: Generation[];
 };
 type State = {
   state: "ready" | "offline" | "disabled" | "model_missing";
@@ -47,15 +49,16 @@ type State = {
   web: { enabled: boolean; reachable: boolean };
 };
 type Generation = {
+  id: string;
   conversationId: string;
-  messageId: string;
-  phase:
-    | "preparing"
-    | "searching_knowledge"
-    | "searching_web"
-    | "reasoning"
-    | "generating";
+  assistantMessageId: string;
+  state: "QUEUED" | "PLANNING" | "GENERATING" | "COMPLETED" | "FAILED" | "INTERRUPTED" | "CANCELED";
+  phase: string;
+  content: string;
+  sources?: Source[];
+  error?: string | null;
 };
+
 
 function contentWithCitationLinks(content: string, sources: Source[] | null | undefined) {
   const links = new Map((Array.isArray(sources) ? sources : []).map((source) => [source.citation, source.href]));
@@ -134,6 +137,7 @@ export function Assistant() {
     setChat(r.conversation);
     setWeb(r.conversation.webSearchEnabled);
     setThink(r.conversation.reasoningEnabled);
+    window.sessionStorage.setItem("synapse:assistant:selected", id);
   };
   const refresh = async () => {
     const [s, c] = await Promise.all([
@@ -147,7 +151,11 @@ export function Assistant() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void refresh()
-        .then((x) => x[0] && load(x[0].id))
+        .then((x) => {
+          const saved = window.sessionStorage.getItem("synapse:assistant:selected");
+          const selected = x.find((item) => item.id === saved) ?? x[0];
+          return selected && load(selected.id);
+        })
         .catch((e) => setError(errorMessage(e)));
     }, 0);
     return () => window.clearTimeout(timer);
@@ -218,7 +226,7 @@ export function Assistant() {
       setChats(remaining);
       setDialog(null);
       if (remaining[0]) await load(remaining[0].id);
-      else setChat(null);
+      else { window.sessionStorage.removeItem("synapse:assistant:selected"); setChat(null); }
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
@@ -228,115 +236,65 @@ export function Assistant() {
   async function send(e?: FormEvent) {
     e?.preventDefault();
     if (!text.trim() || busy || !available) return;
-    let pendingMessageId: string | null = null;
     setBusy(true);
     setError("");
+    const preservedText = text;
     try {
       const active = chat ?? (await create());
-      const q = text.trim();
-      const userId = `u${Date.now()}`;
-      const assistantId = `a${Date.now()}`;
-      pendingMessageId = assistantId;
-      setText("");
-      setGeneration({
-        conversationId: active.id,
-        messageId: assistantId,
-        phase: "preparing",
-      });
-      setChat((current) =>
-        current && current.id === active.id
-          ? {
-              ...current,
-              messages: [
-                ...(current.messages ?? []),
-                { id: userId, role: "USER", content: q },
-                { id: assistantId, role: "ASSISTANT", content: "" },
-              ],
-            }
-          : current,
-      );
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           conversationId: active.id,
-          message: q,
+          message: preservedText.trim(),
           webSearch: web,
           reasoning: think,
+          idempotencyKey: crypto.randomUUID(),
         }),
       });
-      if (!res.ok || !res.body) throw new Error("Risposta non disponibile");
-      const reader = res.body.getReader(),
-        dec = new TextDecoder();
-      let b = "",
-        out = "",
-        sources: Source[] = [];
-      for (;;) {
-        const c = await reader.read();
-        if (c.done) break;
-        b += dec.decode(c.value, { stream: true });
-        const es = b.split("\n\n");
-        b = es.pop() ?? "";
-        for (const raw of es) {
-          const d = JSON.parse(raw.replace(/^data:\s*/, ""));
-          if (d.type === "status")
-            setGeneration((current) =>
-              current?.messageId === assistantId
-                ? { ...current, phase: d.phase }
-                : current,
-            );
-          if (d.type === "token") {
-            out += d.token;
-            setChat((current) =>
-              current && current.id === active.id
-                ? {
-                    ...current,
-                    messages: (current.messages ?? []).map((message) =>
-                      message.id === assistantId
-                        ? { ...message, content: out }
-                        : message,
-                    ),
-                  }
-                : current,
-            );
-          }
-          if (d.type === "done") sources = d.sources ?? [];
-          if (d.type === "error") throw new Error(d.error);
-        }
-      }
-      setChat((v) =>
-        v && v.id === active.id
-          ? {
-              ...v,
-              messages: [
-                ...(v.messages ?? []).map((message) =>
-                  message.id === assistantId
-                    ? { ...message, content: out, sources }
-                    : message,
-                ),
-              ],
-            }
-          : v,
-      );
+      const data = await res.json().catch(() => null) as { generation?: Generation; error?: string } | null;
+      if (!res.ok || !data?.generation) throw new Error(data?.error ?? "Risposta non disponibile");
+      setText("");
+      await load(active.id);
       await refresh();
-    } catch (e) {
-      setText(text);
-      setChat((current) =>
-        current
-          ? {
-              ...current,
-              messages: (current.messages ?? []).filter(
-                (message) => message.id !== pendingMessageId,
-              ),
-            }
-          : current,
-      );
-      setError(errorMessage(e));
+    } catch (cause) {
+      setText(preservedText);
+      setError(errorMessage(cause));
     } finally {
-      setGeneration(null);
       setBusy(false);
     }
   }
+  const activeGeneration = chat?.generations?.find((item) =>
+    ["QUEUED", "PLANNING", "GENERATING"].includes(item.state),
+  ) ?? null;
+  useEffect(() => {
+    if (!chat?.id || !activeGeneration) return;
+    const timer = window.setInterval(() => {
+      void load(chat.id).catch((cause) => setError(errorMessage(cause)));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [chat?.id, activeGeneration?.id]);
+  const cancelGeneration = async (id: string) => {
+    try {
+      await api(`/api/ai/generations/${id}/cancel`, { method: "POST", body: "{}" });
+      if (chat) await load(chat.id);
+    } catch (cause) { setError(errorMessage(cause)); }
+  };
+  const retry = async (id: string) => {
+    try {
+      await api(`/api/ai/generations/${id}/retry`, { method: "POST", body: "{}" });
+      if (chat) await load(chat.id);
+    } catch (cause) { setError(errorMessage(cause)); }
+  };
+  const generationLabel = (item: Generation) => {
+    if (item.state === "QUEUED") return "Domanda ricevuta ? in attesa del modello";
+    if (item.state === "PLANNING") return "Sto preparando la risposta";
+    if (item.phase === "KNOWLEDGE") return "Sto cercando nelle tue conoscenze";
+    if (item.phase === "WEB") return "Sto cercando sul Web";
+    if (item.phase === "REASONING") return "Sto ragionando";
+    return "Sto generando la risposta";
+  };
+
   if (!status) return <Loading label="Carico l’assistente..." />;
   const composer = (
     <form className="assistant-composer" onSubmit={send}>
@@ -345,7 +303,7 @@ export function Assistant() {
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="Chiedi a Synapse..."
-        disabled={busy}
+        disabled={false}
         onKeyDown={(event) => {
           if (event.key === "Enter" && !event.shiftKey) {
             event.preventDefault();
@@ -380,7 +338,7 @@ export function Assistant() {
         </div>
         <button
           className="button button-primary"
-          disabled={!text.trim() || busy}
+          disabled={!text.trim() || !available || busy}
           aria-label="Invia"
         >
           <ArrowUp size={16} />
@@ -521,24 +479,18 @@ export function Assistant() {
               <div className="assistant-messages">
                 {chat.messages?.map((m) => (
                   <article
-                    className={`assistant-message ${m.role.toLowerCase()}${generation?.messageId === m.id && !m.content ? " assistant-pending" : ""}`}
+                    className={`assistant-message ${m.role.toLowerCase()}${m.state === "GENERATING" ? " assistant-pending" : ""}`}
                     key={m.id}
                   >
                     <span>{m.role === "USER" ? "Tu" : "Synapse"}</span>
-                    {generation?.messageId === m.id && !m.content ? (
-                      <p>
-                        {generation.phase === "searching_knowledge"
-                          ? "Cerco nelle tue conoscenze"
-                          : generation.phase === "searching_web"
-                            ? "Cerco sul Web"
-                            : generation.phase === "reasoning"
-                              ? "Sto ragionando"
-                              : generation.phase === "generating"
-                                ? "Sto preparando la risposta"
-                                : "Preparo la risposta"}
-                        <i />
-                      </p>
-                    ) : (
+                    {(() => {
+                      const job = chat.generations?.find((item) => item.assistantMessageId === m.id);
+                      return job && ["QUEUED", "PLANNING", "GENERATING"].includes(job.state) ? (
+                        <div className="assistant-generation-status">
+                          <p>{generationLabel(job)}<i /></p>
+                          <button type="button" className="button button-secondary" onClick={() => void cancelGeneration(job.id)}>Interrompi</button>
+                        </div>
+                      ) : (
                       <div className="assistant-markdown">
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm]}
@@ -555,7 +507,12 @@ export function Assistant() {
                           {contentWithCitationLinks(m.content, m.sources)}
                         </ReactMarkdown>
                       </div>
-                    )}
+                      );
+                    })()}
+                    {(() => {
+                      const job = chat.generations?.find((item) => item.assistantMessageId === m.id);
+                      return job && ["FAILED", "INTERRUPTED", "CANCELED"].includes(job.state) ? <div className="assistant-generation-error"><p>{job.error ?? "Generazione interrotta."}</p><button type="button" className="button button-secondary" onClick={() => void retry(job.id)}>Riprova</button></div> : null;
+                    })()}
                     {m.role === "ASSISTANT" && m.content && <AssistantSources sources={m.sources ?? []} />}
                   </article>
                 ))}

@@ -76,8 +76,19 @@ enum AiMessageRole {
 
 enum AiMessageState {
   COMPLETE
+  GENERATING
   INTERRUPTED
   FAILED
+}
+
+enum AiGenerationState {
+  QUEUED
+  PLANNING
+  GENERATING
+  COMPLETED
+  FAILED
+  INTERRUPTED
+  CANCELED
 }
 
 model User {
@@ -100,6 +111,7 @@ model User {
   plannerTemplates PlannerTemplate[]
   timeSessions TimeSession[]
   aiConversations AiConversation[]
+  aiGenerations AiGeneration[]
   embeddingChunks ItemEmbeddingChunk[]
   embeddingJobs AiEmbeddingJob[]
   trashOperations TrashOperation[]
@@ -121,8 +133,46 @@ model AiConversation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   messages AiMessage[]
+  generations AiGeneration[]
   @@index([userId, updatedAt(sort: Desc)])
   @@index([userId, activeProjectId])
+}
+
+// A durable chat job. The worker, rather than a browser HTTP request, owns the
+// lifetime of the Ollama stream so a reload never loses a response.
+model AiGeneration {
+  id String @id @default(cuid())
+  userId String
+  conversationId String
+  userMessageId String @unique
+  assistantMessageId String @unique
+  idempotencyKey String @db.VarChar(128)
+  options Json
+  state AiGenerationState @default(QUEUED)
+  phase String @default("PREPARING") @db.VarChar(40)
+  content String @default("") @db.Text
+  sources Json?
+  error String? @db.Text
+  attempts Int @default(0)
+  cancelRequestedAt DateTime?
+  startedAt DateTime?
+  finishedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  @@unique([userId, idempotencyKey])
+  @@index([state, createdAt])
+  @@index([conversationId, state])
+}
+
+// Singleton durable lease. It keeps a Raspberry installation at one Ollama
+// generation even if Compose accidentally starts a second worker.
+model AiGenerationLease {
+  id Int @id
+  ownerId String @db.VarChar(128)
+  expiresAt DateTime
+  updatedAt DateTime @updatedAt
 }
 
 model AiMessage {

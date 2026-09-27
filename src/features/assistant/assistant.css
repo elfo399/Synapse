@@ -195,3 +195,15 @@
 .assistant-source-group b, .assistant-source-group small { display: block; }
 .assistant-source-group b { font-weight: 600; }
 .assistant-source-group small { max-width: 500px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.assistant-generation-status,
+.assistant-generation-error {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+.assistant-generation-status p,
+.assistant-generation-error p { margin: 0; }
+.assistant-generation-status .button,
+.assistant-generation-error .button { min-height: 30px; padding: 5px 10px; font-size: 12px; }

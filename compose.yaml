@@ -71,6 +71,42 @@ services:
     healthcheck:
       disable: true
 
+  ai-worker:
+    image: secondbrain:local
+    init: true
+    restart: unless-stopped
+    depends_on:
+      secondbrain-db:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+      searxng:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-secondbrain}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@secondbrain-db:5432/${POSTGRES_DB:-secondbrain}?schema=public
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET in .env}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+      AI_ENABLED: "true"
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-qwen3:1.7b}
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-qwen3-embedding:0.6b}
+      OLLAMA_TIMEOUT_MS: ${OLLAMA_TIMEOUT_MS:-90000}
+      AI_MAX_TOKENS: ${AI_MAX_TOKENS:-500}
+      AI_CONTEXT_TOKENS: ${AI_CONTEXT_TOKENS:-4096}
+      WEB_SEARCH_ENABLED: ${WEB_SEARCH_ENABLED:-true}
+      WEB_SEARCH_MAX_RESULTS: ${WEB_SEARCH_MAX_RESULTS:-3}
+      WEB_SEARCH_CANDIDATE_RESULTS: ${WEB_SEARCH_CANDIDATE_RESULTS:-8}
+      WEB_SEARCH_TIMEOUT_MS: ${WEB_SEARCH_TIMEOUT_MS:-8000}
+      SEARXNG_BASE_URL: http://searxng:8080
+    entrypoint: ["npx", "tsx", "scripts/ai-worker.ts"]
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      disable: true
+
   secondbrain-db:
     image: pgvector/pgvector:pg17
     restart: unless-stopped
