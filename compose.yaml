@@ -68,8 +68,14 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    # Jenkins deploys with `docker compose up --wait`: workers are long-lived
+    # processes, therefore expose a lightweight liveness check as well.
     healthcheck:
-      disable: true
+      test: ["CMD-SHELL", "node -e 'process.kill(1, 0)'"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
 
   ai-worker:
     image: ${SYNAPSE_IMAGE:-synapse:${SYNAPSE_IMAGE_TAG:-latest}}
@@ -105,7 +111,11 @@ services:
     cap_drop:
       - ALL
     healthcheck:
-      disable: true
+      test: ["CMD-SHELL", "node -e 'process.kill(1, 0)'"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
 
   secondbrain-db:
     image: pgvector/pgvector:pg17
