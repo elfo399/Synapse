@@ -13,7 +13,7 @@ partial="$(mktemp -d "$backup_dir/.synapse-$timestamp-XXXXXX.partial")"
 archive="$backup_dir/$(basename -- "${partial%.partial}" | sed 's/^\.//')"
 was_running="$(docker compose ps --status running --services)"
 managed_services=()
-for service in secondbrain-web ai-worker trash-cleanup; do
+for service in secondbrain-web ai-worker trash-cleanup scheduler-worker; do
   if grep -qx "$service" <<<"$was_running"; then managed_services+=("$service"); fi
 done
 maintenance_owner="backup-${timestamp}-$$"

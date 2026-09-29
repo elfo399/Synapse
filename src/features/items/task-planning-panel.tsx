@@ -1,0 +1,44 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { Bell, GitBranch, Link2, Plus, Repeat2, Trash2 } from "lucide-react";
+import { Modal } from "@/components/ui";
+import { getItemHref } from "@/domain/item-url";
+import { api, errorMessage } from "./api";
+
+type Task = { id: string; itemKey: string | null; title: string; status: string };
+type Reminder = { id: string; title: string; scheduledAt: string };
+type Structure = { subtasks: Task[]; completedSubtasks: number; blocking: { id: string; task: Task }[]; blockedBy: { id: string; task: Task }[]; recurrence: { id: string; active: boolean; rule: { frequency?: string; interval?: number } } | null };
+const localDateTime = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+
+export function TaskPlanningPanel({ itemId, onReload }: { itemId: string; onReload: () => void }) {
+  const [data, setData] = useState<Structure | null>(null);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [dialog, setDialog] = useState<"subtask" | "dependency" | "recurrence" | "reminder" | null>(null);
+  const [title, setTitle] = useState(""); const [selectedTask, setSelectedTask] = useState("");
+  const [frequency, setFrequency] = useState("WEEKLY"); const [interval, setInterval] = useState("1");
+  const [startsAt, setStartsAt] = useState(localDateTime()); const [reminderAt, setReminderAt] = useState(localDateTime());
+  const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
+  const load = async () => {
+    const [structure, candidates, reminderList] = await Promise.all([api<Structure>(`/api/tasks/${itemId}/structure`), api<{ items: Task[] }>("/api/items?type=TASK&limit=100"), api<{ reminders: Reminder[] }>(`/api/tasks/${itemId}/reminders`)]);
+    setData(structure); setTasks(candidates.items.filter((task) => task.id !== itemId)); setReminders(reminderList.reminders);
+  };
+  useEffect(() => { void load().catch((reason) => setError(errorMessage(reason))); }, [itemId]);
+  async function perform(action: () => Promise<unknown>) { setBusy(true); setError(""); try { await action(); setDialog(null); setTitle(""); setSelectedTask(""); await load(); onReload(); } catch (reason) { setError(errorMessage(reason)); } finally { setBusy(false); } }
+  const post = (body: unknown) => api(`/api/tasks/${itemId}/structure`, { method: "POST", body: JSON.stringify(body) });
+  const total = data?.subtasks.length ?? 0;
+  const candidates = tasks.filter((task) => task.status !== "DONE");
+  const recurrence = data?.recurrence;
+  return <section className="detail-card task-planning" aria-labelledby="task-planning-heading">
+    <div className="detail-card-heading"><h2 id="task-planning-heading"><GitBranch size={17} /> Pianificazione {total ? <span>{data?.completedSubtasks}/{total}</span> : null}</h2><div className="task-planning-actions"><button className="text-link" onClick={() => setDialog("subtask")}><Plus size={14} /> Sottoattività</button><button className="text-link" onClick={() => setDialog("dependency")}><Link2 size={14} /> Dipendenza</button><button className="text-link" onClick={() => setDialog("recurrence")}><Repeat2 size={14} /> Ricorrenza</button><button className="text-link" onClick={() => setDialog("reminder")}><Bell size={14} /> Promemoria</button></div></div>
+    {total ? <><progress value={data?.completedSubtasks} max={total} /><div className="task-planning-list">{data!.subtasks.map((task) => <Link href={getItemHref(task as never)} key={task.id}>{task.itemKey ? `${task.itemKey} · ` : ""}{task.title}<small>{task.status}</small></Link>)}</div></> : <p className="detail-empty">Suddividi questa attività in passi più piccoli quando serve.</p>}
+    <div className="task-planning-details">{data?.blockedBy.length ? <div><strong>In attesa di</strong>{data.blockedBy.map((entry) => <Link href={getItemHref(entry.task as never)} key={entry.id}>{entry.task.title}</Link>)}</div> : null}{data?.blocking.length ? <div><strong>Blocca</strong>{data.blocking.map((entry) => <Link href={getItemHref(entry.task as never)} key={entry.id}>{entry.task.title}</Link>)}</div> : null}{recurrence ? <div><strong><Repeat2 size={13} /> Ricorrenza</strong><span>{recurrence.active ? `Ogni ${recurrence.rule.interval ?? 1} ${recurrence.rule.frequency?.toLocaleLowerCase("it-IT")}` : "Sospesa"}</span><button className="text-link" onClick={() => void perform(() => post({ action: "recurrence", rule: recurrence.rule, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Rome", startsAt: new Date().toISOString(), active: !recurrence.active }))}>{recurrence.active ? "Sospendi" : "Riattiva"}</button></div> : null}{reminders.length ? <div><strong><Bell size={13} /> Promemoria</strong>{reminders.map((reminder) => <span className="task-reminder" key={reminder.id}>{new Intl.DateTimeFormat("it-IT", { dateStyle: "medium", timeStyle: "short" }).format(new Date(reminder.scheduledAt))}<button aria-label={`Elimina promemoria ${reminder.title}`} className="icon-button" onClick={() => void perform(() => api(`/api/tasks/${itemId}/reminders/${reminder.id}`, { method: "DELETE" }))}><Trash2 size={13} /></button></span>)}</div> : null}</div>
+    {error && <p className="form-error">{error}</p>}
+    <Modal open={dialog === "subtask"} onOpenChange={(open) => !open && setDialog(null)} title="Nuova sottoattività" description="Verrà collegata a questa attività e contribuirà al suo avanzamento."><label className="field-label">Titolo<input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} /></label><div className="dialog-footer"><button className="button button-secondary" onClick={() => setDialog(null)}>Annulla</button><button className="button button-primary" disabled={busy || !title.trim()} onClick={() => void perform(() => post({ action: "createSubtask", title }))}>Crea</button></div></Modal>
+    <Modal open={dialog === "dependency"} onOpenChange={(open) => !open && setDialog(null)} title="Aggiungi una dipendenza" description="Questa attività resterà in attesa finché l'attività selezionata non sarà conclusa."><label className="field-label">Attività che deve precedere<select value={selectedTask} onChange={(event) => setSelectedTask(event.target.value)}><option value="">Scegli un'attività</option>{candidates.map((task) => <option key={task.id} value={task.id}>{task.itemKey ? `${task.itemKey} · ` : ""}{task.title}</option>)}</select></label><div className="dialog-footer"><button className="button button-secondary" onClick={() => setDialog(null)}>Annulla</button><button className="button button-primary" disabled={busy || !selectedTask} onClick={() => void perform(() => post({ action: "dependency", blockerTaskId: selectedTask }))}>Aggiungi dipendenza</button></div></Modal>
+    <Modal open={dialog === "recurrence"} onOpenChange={(open) => !open && setDialog(null)} title="Ripeti attività" description="Synapse creerà una nuova attività alla prossima scadenza."><div className="task-form-grid"><label className="field-label">Frequenza<select value={frequency} onChange={(event) => setFrequency(event.target.value)}><option value="DAILY">Ogni giorno</option><option value="WEEKLY">Ogni settimana</option><option value="MONTHLY">Ogni mese</option><option value="YEARLY">Ogni anno</option></select></label><label className="field-label">Ogni<input type="number" min="1" max="365" value={interval} onChange={(event) => setInterval(event.target.value)} /></label><label className="field-label">Inizia il<input type="datetime-local" value={startsAt} onChange={(event) => setStartsAt(event.target.value)} /></label></div><div className="dialog-footer"><button className="button button-secondary" onClick={() => setDialog(null)}>Annulla</button><button className="button button-primary" disabled={busy} onClick={() => void perform(() => post({ action: "recurrence", rule: { frequency, interval: Number(interval) || 1 }, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Rome", startsAt: new Date(startsAt).toISOString(), active: true }))}>Attiva</button></div></Modal>
+    <Modal open={dialog === "reminder"} onOpenChange={(open) => !open && setDialog(null)} title="Aggiungi promemoria" description="Comparirà nelle Notifiche di Synapse all'orario indicato."><label className="field-label">Quando<input type="datetime-local" value={reminderAt} onChange={(event) => setReminderAt(event.target.value)} /></label><div className="dialog-footer"><button className="button button-secondary" onClick={() => setDialog(null)}>Annulla</button><button className="button button-primary" disabled={busy} onClick={() => void perform(() => api(`/api/tasks/${itemId}/reminders`, { method: "POST", body: JSON.stringify({ scheduledAt: new Date(reminderAt).toISOString() }) }))}>Aggiungi</button></div></Modal>
+  </section>;
+}

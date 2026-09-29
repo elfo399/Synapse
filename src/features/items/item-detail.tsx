@@ -50,6 +50,7 @@ import { TransferActions } from "./transfer-actions";
 import { AdvancedDeletionDialog } from "./advanced-deletion-dialog";
 import { FloatingItemActions } from "./floating-item-actions";
 import { RevisionHistory } from "./revision-history";
+import { TaskPlanningPanel } from "./task-planning-panel";
 import "./document.css";
 import "./detail-workspace.css";
 
@@ -600,6 +601,7 @@ function ItemEditor({
               </section>
             )}
             <RelationsPanel item={item} onReload={reload} />
+            {item.type === "TASK" && <TaskPlanningPanel itemId={item.id} onReload={reload} />}
             <RelatedTasks item={item} onReload={reload} />
             {item.type !== "RESOURCE" && (
               <AttachmentPanel

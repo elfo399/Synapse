@@ -63,6 +63,7 @@ export function ItemList({
   const [tagFilter, setTagFilter] = useState(tag || "");
   const [page, setPage] = useState(1);
   const [pending, setPending] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string[]>([]);
   useEffect(() => {
     const timeout = setTimeout(() => setDebounced(query), 200);
     return () => clearTimeout(timeout);
@@ -99,6 +100,16 @@ export function ItemList({
     } finally {
       setPending(null);
     }
+  }
+  async function bulk(action: "complete" | "reopen" | "archive") {
+    if (!selected.length) return;
+    setPending("bulk");
+    try {
+      const result = await api<{ updated: number }>("/api/tasks/bulk", { method: "POST", body: JSON.stringify({ ids: selected, action }) });
+      setSelected([]); changed(); await reload();
+      notify(result.updated === 1 ? "Attività aggiornata." : `${result.updated} attività aggiornate.`);
+    } catch (reason) { notify(errorMessage(reason)); }
+    finally { setPending(null); }
   }
   const title = tag ? `#${tag}` : pageLabels[kind] || "Elementi";
   const hasFilters = Boolean(
@@ -210,6 +221,15 @@ export function ItemList({
           )}
           <span className="collection-updated">Ultima modifica</span>
         </div>
+        {itemType === "TASK" && selected.length > 0 && (
+          <div className="collection-bulk-actions" role="status">
+            <span>{selected.length} selezionate</span>
+            <button className="button button-secondary compact" disabled={pending === "bulk"} onClick={() => void bulk("complete")}>Completa</button>
+            <button className="button button-secondary compact" disabled={pending === "bulk"} onClick={() => void bulk("reopen")}>Riapri</button>
+            <button className="button button-ghost compact" disabled={pending === "bulk"} onClick={() => void bulk("archive")}>Archivia</button>
+            <button className="text-link" onClick={() => setSelected([])}>Annulla</button>
+          </div>
+        )}
         {error ? (
           <ErrorState message={error} retry={reload} />
         ) : loading && !data ? (
@@ -270,7 +290,14 @@ export function ItemList({
                   >
                     <RotateCcw size={17} />
                   </button>
-                ) : item.type === "TASK" ? (
+                ) : item.type === "TASK" ? (<>
+                  <input
+                    className="collection-select"
+                    type="checkbox"
+                    aria-label={`Seleziona ${item.title}`}
+                    checked={selected.includes(item.id)}
+                    onChange={(event) => setSelected((current) => event.target.checked ? [...current, item.id] : current.filter((id) => id !== item.id))}
+                  />
                   <button
                     className={`collection-task-check ${item.status === "DONE" ? "done" : ""}`}
                     aria-label={`${item.status === "DONE" ? "Riapri" : "Completa"} ${item.title}`}
@@ -290,7 +317,7 @@ export function ItemList({
                     ) : (
                       <Circle size={19} />
                     )}
-                  </button>
+                  </button></>
                 ) : undefined
               }
             />

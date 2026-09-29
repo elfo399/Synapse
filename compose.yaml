@@ -117,6 +117,28 @@ services:
       retries: 3
       start_period: 5s
 
+  scheduler-worker:
+    image: ${SYNAPSE_IMAGE:-synapse:${SYNAPSE_IMAGE_TAG:-latest}}
+    init: true
+    restart: unless-stopped
+    depends_on:
+      secondbrain-db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-secondbrain}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@secondbrain-db:5432/${POSTGRES_DB:-secondbrain}?schema=public
+    entrypoint: ["npx", "tsx", "scripts/scheduler-worker.ts"]
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD-SHELL", "node -e 'process.kill(1, 0)'"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
   secondbrain-db:
     image: pgvector/pgvector:pg17
     restart: unless-stopped

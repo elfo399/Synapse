@@ -17,7 +17,7 @@ for name in database.dump attachments.pack manifest.json; do
   [[ "$expected" =~ ^[a-f0-9]{64}$ && "$expected" == "$actual" ]] || { printf 'Checksum failed: %s. No changes made.\n' "$name" >&2; exit 1; }
 done
 docker compose exec -T secondbrain-db pg_restore --list < "$archive/database.dump" > /dev/null
-docker compose stop ai-worker trash-cleanup secondbrain-web >&2
+docker compose stop scheduler-worker ai-worker trash-cleanup secondbrain-web >&2
 safety_archive="$(bash "$repo_dir/scripts/backup.sh")"
 printf 'Pre-restore safety backup: %s\n' "$safety_archive" >&2
 maintenance_owner="restore-$(date -u +%Y%m%dT%H%M%SZ)-$$"
@@ -58,5 +58,5 @@ trap - ERR
 storage finalize
 maintenance release
 maintenance_acquired=0
-docker compose up -d --wait secondbrain-web ai-worker trash-cleanup >&2
+docker compose up -d --wait secondbrain-web ai-worker trash-cleanup scheduler-worker >&2
 printf '%s\n' 'Database and attachment hashes verified. Application is healthy.'

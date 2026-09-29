@@ -1,0 +1,9 @@
+"use client";
+import Link from "next/link";
+import { Bell, Check } from "lucide-react";
+import { useRemote } from "@/features/items/use-remote";
+import { api } from "@/features/items/api";
+import { getItemHref } from "@/domain/item-url";
+import "./notifications.css";
+type N={id:string;title:string;body:string;readAt:string|null;createdAt:string;item:{id:string;itemKey:string|null;title:string}|null};
+export function NotificationsPage(){const {data,reload}=useRemote<{unread:number;notifications:N[]}>("/api/notifications"); if(!data)return <div className="page notification-page">Caricamento…</div>; return <div className="page notification-page"><header className="notification-header"><div><p className="eyebrow">Tieni a mente ciò che conta</p><h1>Notifiche</h1><p>Promemoria, scadenze e aggiornamenti del tuo spazio.</p></div><div className="notification-count"><Bell size={17}/><strong>{data.unread}</strong><span>{data.unread===1?"non letta":"non lette"}</span></div></header><section className="notification-card">{data.notifications.length?data.notifications.map(n=><article key={n.id} className={`notification-row ${n.readAt?"is-read":""}`}><div className="notification-mark"><Bell size={16}/></div><div className="notification-copy"><strong>{n.title}</strong>{n.body&&<p>{n.body}</p>}{n.item&&<Link href={getItemHref(n.item as never)}>{n.item.itemKey} · {n.item.title}</Link>}<time>{new Intl.DateTimeFormat("it-IT",{dateStyle:"medium",timeStyle:"short"}).format(new Date(n.createdAt))}</time></div>{!n.readAt&&<button className="icon-button" aria-label="Segna come letta" onClick={async()=>{await api(`/api/notifications/${n.id}`,{method:"PATCH",body:JSON.stringify({read:true})});reload()}}><Check size={16}/></button>}</article>):<div className="notification-empty"><Bell size={22}/><h2>Nessuna notifica</h2><p>Quando Synapse avrà qualcosa da ricordarti, lo troverai qui.</p></div>}</section></div>}

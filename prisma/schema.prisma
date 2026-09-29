@@ -39,6 +39,12 @@ enum ResourceBlockType {
   LINK
 }
 
+enum NotificationKind {
+  REMINDER
+  WEEKLY_REVIEW
+  FOCUS_LONG_RUNNING
+}
+
 enum TimeBlockCategory {
   WORK
   STUDY
@@ -116,6 +122,11 @@ model User {
   embeddingJobs AiEmbeddingJob[]
   trashOperations TrashOperation[]
   itemRevisions ItemRevision[]
+  taskDependencies TaskDependency[]
+  taskRecurrences TaskRecurrence[]
+  weeklyReviews WeeklyReview[]
+  reminders Reminder[]
+  notifications Notification[]
   itemCounter UserItemCounter?
   settings UserSettings?
   focusState FocusState?
@@ -279,6 +290,16 @@ model Item {
   embeddingChunks ItemEmbeddingChunk[]
   embeddingJobs AiEmbeddingJob[]
   revisions ItemRevision[]
+  taskParentId String?
+  taskParent Item? @relation("TaskHierarchy", fields: [taskParentId], references: [id], onDelete: SetNull)
+  subtasks Item[] @relation("TaskHierarchy")
+  blocksTasks TaskDependency[] @relation("TaskBlocks")
+  blockedByTasks TaskDependency[] @relation("TaskBlockedBy")
+  recurrenceId String?
+  recurrence TaskRecurrence? @relation("RecurrenceOccurrences", fields: [recurrenceId], references: [id], onDelete: SetNull)
+  recurrenceDefinition TaskRecurrence? @relation("RecurrenceTemplate")
+  reminders Reminder[]
+  notifications Notification[]
   @@unique([userId, id])
   @@unique([userId, itemKey])
   @@index([userId, titleNormalized])
@@ -288,6 +309,81 @@ model Item {
   @@index([userId, type, archivedAt, status])
   @@index([userId, inbox, archivedAt])
   @@index([userId, dueAt])
+  @@index([userId, taskParentId])
+  @@index([userId, recurrenceId])
+}
+
+model TaskDependency {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  blockerTaskId String
+  blockedTaskId String
+  blocker Item @relation("TaskBlocks", fields: [blockerTaskId], references: [id], onDelete: Cascade)
+  blocked Item @relation("TaskBlockedBy", fields: [blockedTaskId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@unique([userId, blockerTaskId, blockedTaskId])
+  @@index([userId, blockedTaskId])
+}
+
+model TaskRecurrence {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  templateTaskId String @unique
+  templateTask Item @relation("RecurrenceTemplate", fields: [templateTaskId], references: [id], onDelete: Cascade)
+  rule Json
+  timezone String @default("Europe/Rome") @db.VarChar(64)
+  startsAt DateTime
+  endsAt DateTime?
+  nextOccurrenceAt DateTime
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  occurrences Item[] @relation("RecurrenceOccurrences")
+  @@index([userId, active, nextOccurrenceAt])
+}
+
+model WeeklyReview {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekStart DateTime
+  completedAt DateTime?
+  notes String @default("") @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([userId, weekStart])
+  @@index([userId, completedAt])
+}
+
+model Reminder {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemId String?
+  item Item? @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  title String @db.VarChar(200)
+  scheduledAt DateTime
+  sentAt DateTime?
+  snoozedUntil DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([userId, sentAt, scheduledAt])
+}
+
+model Notification {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemId String?
+  item Item? @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  kind NotificationKind @default(REMINDER)
+  title String @db.VarChar(200)
+  body String @default("") @db.Text
+  readAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([userId, readAt, createdAt(sort: Desc)])
 }
 
 model TrashOperation {
@@ -308,6 +404,14 @@ model UserSettings {
   userId String @id
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   trashRetentionDays Int @default(30)
+  timezone String @default("Europe/Rome") @db.VarChar(64)
+  remindersEnabled Boolean @default(true)
+  browserNotificationsEnabled Boolean @default(false)
+  defaultReminderTime String @default("09:00") @db.VarChar(5)
+  weeklyReviewDay Int @default(1)
+  weeklyReviewTime String @default("09:00") @db.VarChar(5)
+  quietHoursStart String? @db.VarChar(5)
+  quietHoursEnd String? @db.VarChar(5)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
