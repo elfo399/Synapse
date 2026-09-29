@@ -96,6 +96,8 @@ function snapshotDiff(before: Snapshot, after: Snapshot) {
 
 export function RevisionHistory({ itemId, version, open, onOpenChange, onRestored }: { itemId: string; version: number; open: boolean; onOpenChange: (open: boolean) => void; onRestored: () => void }) {
   const [revisions, setRevisions] = useState<Revision[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [selected, setSelected] = useState<Revision | null>(null);
   const [compare, setCompare] = useState<Revision | null>(null);
   const [busy, setBusy] = useState(false);
@@ -104,10 +106,21 @@ export function RevisionHistory({ itemId, version, open, onOpenChange, onRestore
   useEffect(() => {
     if (!open) return;
     setBusy(true); setError("");
-    void api<{ revisions: Revision[] }>(`/api/items/${itemId}/revisions`).then((result) => {
-      setRevisions(result.revisions); setSelected(result.revisions[0] ?? null); setCompare(result.revisions[1] ?? null);
+    void api<{ revisions: Revision[]; total: number; page: number; pageSize: number }>(`/api/items/${itemId}/revisions?page=1&limit=20`).then((result) => {
+      setRevisions(result.revisions); setTotal(result.total); setPage(result.page); setSelected(result.revisions[0] ?? null); setCompare(result.revisions[1] ?? null);
     }).catch((reason) => setError(errorMessage(reason))).finally(() => setBusy(false));
   }, [open, itemId]);
+  async function loadMore() {
+    if (busy || revisions.length >= total) return;
+    setBusy(true);
+    try {
+      const next = page + 1;
+      const result = await api<{ revisions: Revision[]; total: number; page: number }>(`/api/items/${itemId}/revisions?page=${next}&limit=20`);
+      setRevisions((current) => [...current, ...result.revisions.filter((revision) => !current.some((entry) => entry.id === revision.id))]);
+      setTotal(result.total); setPage(result.page);
+    } catch (reason) { setError(errorMessage(reason)); }
+    finally { setBusy(false); }
+  }
   const changes = useMemo(() => selected && compare ? snapshotDiff(compare.snapshot, selected.snapshot) : [], [selected, compare]);
   async function restoreNow() {
     if (!selected) return;
@@ -119,7 +132,7 @@ export function RevisionHistory({ itemId, version, open, onOpenChange, onRestore
   return <>
     <Modal open={open} onOpenChange={onOpenChange} title="Cronologia delle versioni" description="Le versioni appartengono a questo elemento e non modificano i collegamenti organizzativi." wide className="revision-dialog">
       <div className="revision-layout">
-        <aside className="revision-list">{busy && <p>Caricamento?</p>}{revisions.map((revision, index) => <button type="button" key={revision.id} className={selected?.id === revision.id ? "selected" : ""} onClick={() => setSelected(revision)}><strong>Versione {revision.revisionNumber}{index === 0 ? " ? Attuale" : ""}</strong><small>{new Intl.DateTimeFormat("it-IT", { dateStyle: "medium", timeStyle: "short" }).format(new Date(revision.createdAt))}</small>{revision.comment && <em>{revision.comment}</em>}</button>)}</aside>
+        <aside className="revision-list">{busy && !revisions.length && <p>Caricamento…</p>}{revisions.map((revision) => <button type="button" key={revision.id} className={selected?.id === revision.id ? "selected" : ""} onClick={() => { setSelected(revision); if (compare?.id === revision.id) setCompare(revisions.find((entry) => entry.id !== revision.id) ?? null); }}><strong>Versione {revision.revisionNumber}{revision.revisionNumber === revisions[0]?.revisionNumber ? " · Attuale" : ""}</strong><small>{new Intl.DateTimeFormat("it-IT", { dateStyle: "medium", timeStyle: "short" }).format(new Date(revision.createdAt))}</small>{revision.comment && <em>{revision.comment}</em>}</button>)}{revisions.length < total && <button className="button button-secondary compact revision-more" disabled={busy} onClick={() => void loadMore()}>Carica versioni precedenti</button>}</aside>
         <main className="revision-preview">{error && <p className="form-error">{error}</p>}{selected && <>
           <div className="revision-preview-heading"><div><span className="eyebrow">Versione {selected.revisionNumber}</span><h3>{selected.snapshot.title}</h3></div><button className="button button-secondary compact" disabled={busy} onClick={() => setRestore(true)}><RotateCcw size={15} /> Ripristina questa versione</button></div>
           <div className="revision-compare">{revisions.length > 1 ? <label>Confronta con<select value={compare?.id ?? ""} onChange={(event) => setCompare(revisions.find((revision) => revision.id === event.target.value) ?? null)}>{revisions.filter((revision) => revision.id !== selected.id).map((revision) => <option key={revision.id} value={revision.id}>Versione {revision.revisionNumber}</option>)}</select></label> : <span>Non esistono ancora altre versioni da confrontare.</span>}<span>Tag: {selected.snapshot.tags.join(", ") || "nessuno"} ? Stato: {selected.snapshot.status}</span></div>

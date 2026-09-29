@@ -73,6 +73,10 @@ export async function createItemRevision(
     _max: { revisionNumber: true },
   });
   const data = await snapshot(tx, userId, itemId);
+  const previous = await tx.itemRevision.findFirst({
+    where: { userId, itemId }, orderBy: { revisionNumber: "desc" }, select: { snapshot: true },
+  });
+  if (previous && JSON.stringify(previous.snapshot) === JSON.stringify(data)) return null;
   return tx.itemRevision.create({
     data: {
       userId,
@@ -88,9 +92,17 @@ export async function createItemRevision(
 
 export async function ensureInitialRevision(userId: string, itemId: string) {
   return prisma.$transaction(async (tx) => {
-    const exists = await tx.itemRevision.count({ where: { userId, itemId } });
-    if (!exists) await createItemRevision(tx, userId, itemId);
+    await ensureInitialRevisionInTransaction(tx, userId, itemId);
   });
+}
+
+export async function ensureInitialRevisionInTransaction(
+  tx: PrismaTypes.TransactionClient,
+  userId: string,
+  itemId: string,
+) {
+  const exists = await tx.itemRevision.count({ where: { userId, itemId } });
+  if (!exists) await createItemRevision(tx, userId, itemId, { comment: "Stato iniziale" });
 }
 
 export async function listItemRevisions(userId: string, itemId: string, page = 1, limit = 20) {

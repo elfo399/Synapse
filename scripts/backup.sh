@@ -11,7 +11,17 @@ command -v sha256sum >/dev/null
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 partial="$(mktemp -d "$backup_dir/.synapse-$timestamp-XXXXXX.partial")"
 archive="$backup_dir/$(basename -- "${partial%.partial}" | sed 's/^\.//')"
-was_running="$(docker compose ps --status running --services secondbrain-web)"
+was_running="$(docker compose ps --status running --services)"
+managed_services=()
+for service in secondbrain-web ai-worker trash-cleanup; do
+  if grep -qx "$service" <<<"$was_running"; then managed_services+=("$service"); fi
+done
+maintenance_owner="backup-${timestamp}-$$"
+maintenance_acquired=0
+maintenance() {
+  docker compose run --rm --no-deps -T --entrypoint npx secondbrain-web \
+    tsx scripts/maintenance-lease.ts "$1" "$maintenance_owner" 120
+}
 cleanup() {
   local code=$?
   # This directory was created by mktemp above, never supplied as a deletion target.
@@ -19,11 +29,15 @@ cleanup() {
   # `start` only resumes existing containers. During an upgrade a newly added
   # dependency (such as Ollama) may not exist yet, so Compose must resolve and
   # create the dependency graph before restoring the web service.
-  if [[ -n "$was_running" ]]; then docker compose up -d --no-build secondbrain-web >&2 || code=1; fi
+  if [[ "$maintenance_acquired" == 1 ]]; then maintenance release >&2 || code=1; fi
+  if (( ${#managed_services[@]} )); then docker compose up -d --no-build "${managed_services[@]}" >&2 || code=1; fi
   exit "$code"
 }
 trap cleanup EXIT
-if [[ -n "$was_running" ]]; then docker compose stop secondbrain-web >&2; fi
+maintenance acquire
+maintenance_acquired=1
+maintenance wait
+if (( ${#managed_services[@]} )); then docker compose stop "${managed_services[@]}" >&2; fi
 printf '%s\n' 'Backing up database and private attachments with the app stopped.' >&2
 docker compose exec -T secondbrain-db sh -eu -c \
   'exec pg_dump --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --format=custom --no-owner --no-privileges' > "$partial/database.dump"

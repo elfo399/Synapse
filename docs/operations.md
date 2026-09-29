@@ -73,3 +73,7 @@ Rollback is an application **and schema** decision. If the new migration is comp
 The initial-account variables create an account once; changing them never resets existing credentials. V1 intentionally has no email service or self-service email reset. Keep the account password in a password manager. Use the authenticated password-change endpoint supported by Better Auth if adding account settings; do not edit a stored hash by hand. Administrative recovery requires an explicit maintenance procedure using Better Auth's password hashing API, a verified account identity, and session revocation.
 
 Rotating `BETTER_AUTH_SECRET` invalidates existing signed sessions. Update the secret in the deployment configuration and recreate web. Changing `.env` alone does not change an already running container. Database password rotation must update the database role and the app's connection configuration together.
+# Operazioni e recupero
+
+Per dettagli sulle migration, sulla retention del Cestino e sul coordinamento dei
+worker durante backup e ripristino, consultare [Migrazioni del database](migrations.md).

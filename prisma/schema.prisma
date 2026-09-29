@@ -175,6 +175,15 @@ model AiGenerationLease {
   updatedAt DateTime @updatedAt
 }
 
+// A short-lived database lease used by backup/restore and background workers.
+// It survives process restarts and expires automatically if its owner dies.
+model MaintenanceLease {
+  id Int @id
+  owner String @db.VarChar(128)
+  expiresAt DateTime
+  updatedAt DateTime @updatedAt
+}
+
 model AiMessage {
   id String @id @default(cuid())
   conversationId String

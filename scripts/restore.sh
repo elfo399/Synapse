@@ -17,9 +17,18 @@ for name in database.dump attachments.pack manifest.json; do
   [[ "$expected" =~ ^[a-f0-9]{64}$ && "$expected" == "$actual" ]] || { printf 'Checksum failed: %s. No changes made.\n' "$name" >&2; exit 1; }
 done
 docker compose exec -T secondbrain-db pg_restore --list < "$archive/database.dump" > /dev/null
-docker compose stop secondbrain-web >&2
+docker compose stop ai-worker trash-cleanup secondbrain-web >&2
 safety_archive="$(bash "$repo_dir/scripts/backup.sh")"
 printf 'Pre-restore safety backup: %s\n' "$safety_archive" >&2
+maintenance_owner="restore-$(date -u +%Y%m%dT%H%M%SZ)-$$"
+maintenance_acquired=0
+maintenance() {
+  docker compose run --rm --no-deps -T --entrypoint npx secondbrain-web \
+    tsx scripts/maintenance-lease.ts "$1" "$maintenance_owner" 240
+}
+maintenance acquire
+maintenance_acquired=1
+maintenance wait
 token="$(docker compose run --rm --no-deps -T --entrypoint node secondbrain-web -e 'process.stdout.write(require("node:crypto").randomBytes(16).toString("hex"))')"
 [[ "$token" =~ ^[a-f0-9]{32}$ ]]
 storage() { docker compose run --rm --no-deps -T --entrypoint node secondbrain-web scripts/attachment-backup.mjs "$1" "$token"; }
@@ -34,6 +43,7 @@ failed() {
   set +e
   if [[ "$activated" == 1 ]]; then storage rollback; fi
   if [[ "$database_changed" == 1 ]]; then restore_database "$safety_archive/database.dump"; fi
+  if [[ "$maintenance_acquired" == 1 ]]; then maintenance release || true; fi
   printf 'Restore failed. App remains stopped. Safety backup: %s\n' "$safety_archive" >&2
   exit 1
 }
@@ -46,5 +56,7 @@ database_changed=1
 storage verify
 trap - ERR
 storage finalize
-docker compose up -d --wait secondbrain-web >&2
+maintenance release
+maintenance_acquired=0
+docker compose up -d --wait secondbrain-web ai-worker trash-cleanup >&2
 printf '%s\n' 'Database and attachment hashes verified. Application is healthy.'

@@ -269,10 +269,18 @@ export function Assistant() {
   ) ?? null;
   useEffect(() => {
     if (!chat?.id || !activeGeneration) return;
-    const timer = window.setInterval(() => {
-      void load(chat.id).catch((cause) => setError(errorMessage(cause)));
-    }, 1000);
-    return () => window.clearInterval(timer);
+    const source = new EventSource(`/api/ai/generations/${activeGeneration.id}/events`);
+    source.addEventListener("generation", (event) => {
+      const next = JSON.parse((event as MessageEvent).data) as Generation;
+      setChat((current) => current?.id === chat.id ? {
+        ...current,
+        generations: (current.generations ?? []).map((item) => item.id === next.id ? next : item),
+        messages: (current.messages ?? []).map((message) => message.id === next.assistantMessageId ? { ...message, content: next.content, sources: next.sources, state: next.state === "COMPLETED" ? "COMPLETE" : next.state === "FAILED" ? "FAILED" : next.state === "CANCELED" || next.state === "INTERRUPTED" ? "INTERRUPTED" : "GENERATING" } : message),
+      } : current);
+      if (["COMPLETED", "FAILED", "INTERRUPTED", "CANCELED"].includes(next.state)) source.close();
+    });
+    source.onerror = () => { source.close(); void load(chat.id).catch(() => undefined); };
+    return () => source.close();
   }, [chat?.id, activeGeneration?.id]);
   const cancelGeneration = async (id: string) => {
     try {

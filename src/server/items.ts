@@ -26,7 +26,7 @@ import {
   syncWikiLinks,
 } from "./wikilinks";
 import { queueItemEmbedding } from "./ai-index";
-import { createItemRevision } from "./revisions";
+import { createItemRevision, ensureInitialRevisionInTransaction } from "./revisions";
 
 async function setTags(
   tx: Prisma.TransactionClient,
@@ -298,6 +298,9 @@ export async function updateItem(
       (input.archived !== undefined && Boolean(previous.archivedAt) !== input.archived) ||
       input.tags !== undefined || input.parentIds !== undefined || input.primaryParentId !== undefined;
     if (!hasItemChange) return getItem(userId, id, tx);
+    // Older items may predate history. Preserve their state before the first
+    // substantive update rather than recording only the changed version.
+    await ensureInitialRevisionInTransaction(tx, userId, id);
     const updated = await tx.item.update({
       where: { userId_id: { userId, id } },
       data: {

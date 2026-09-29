@@ -1,0 +1,8 @@
+CREATE TABLE "MaintenanceLease" (
+  "id" INTEGER NOT NULL,
+  "owner" VARCHAR(128) NOT NULL DEFAULT '',
+  "expiresAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "MaintenanceLease_pkey" PRIMARY KEY ("id")
+);
+INSERT INTO "MaintenanceLease" ("id", "owner", "expiresAt", "updatedAt") VALUES (1, '', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);

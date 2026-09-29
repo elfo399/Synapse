@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { prisma } from "../src/lib/db";
 import { markStaleGenerationsInterrupted, runGenerationJob } from "../src/server/ai";
+import { maintenanceActive } from "../src/server/maintenance";
 
 const ownerId = `ai-worker-${process.pid}-${randomUUID().slice(0, 8)}`;
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -29,6 +30,7 @@ async function loop() {
   let lastRecovery = Date.now();
   while (!stopping) {
     try {
+      if (await maintenanceActive()) { await wait(1000); continue; }
       if (Date.now() - lastRecovery > 30_000) {
         await markStaleGenerationsInterrupted();
         lastRecovery = Date.now();

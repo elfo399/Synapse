@@ -18,6 +18,7 @@ import {
   validateUpload,
 } from "./upload-validation";
 import { withUserTransaction } from "./transactions";
+import { createItemRevision, ensureInitialRevisionInTransaction } from "./revisions";
 
 const captureSchema = itemSchema.extend({
   title: z.string().trim().max(200).default(""),
@@ -266,9 +267,11 @@ export async function addAttachments(
           400,
           "Questo elemento contiene già troppi allegati (massimo 100).",
         );
+      await ensureInitialRevisionInTransaction(tx, userId, itemId);
       await tx.attachment.createMany({
         data: prepared.map((file) => ({ ...file, userId, itemId })),
       });
+      await createItemRevision(tx, userId, itemId);
       return getItem(userId, itemId, tx);
     });
   } catch (error) {
@@ -298,10 +301,12 @@ export async function deleteAttachment(
       where: { userId, id, item: { deletedAt: null } },
     });
     if (!file) throw new HttpError(404, "Allegato non trovato.");
+    await ensureInitialRevisionInTransaction(tx, userId, file.itemId);
     await tx.attachmentDeletion.create({
       data: { storageKey: file.storageKey },
     });
     await tx.attachment.delete({ where: { id: file.id } });
+    await createItemRevision(tx, userId, file.itemId);
   });
   await drainAttachmentDeletions(storage);
 }

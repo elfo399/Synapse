@@ -1,12 +1,14 @@
 ﻿import "dotenv/config";
 import { prisma } from "../src/lib/db";
 import { getTrashPurgePreview, purgeTrashOperation } from "../src/server/trash";
+import { maintenanceActive } from "../src/server/maintenance";
 
 export async function cleanExpiredTrash() {
+  if (await maintenanceActive()) return 0;
   const locked = await prisma.$queryRaw<{ locked: boolean }[]>`SELECT pg_try_advisory_lock(82944122) AS locked`;
   if (!locked[0]?.locked) return 0;
   try {
-    const operations = await prisma.trashOperation.findMany({ select: { id: true, userId: true, deletedAt: true, purgeAfter: true }, take: 1000, orderBy: { deletedAt: "asc" } });
+    const operations = await prisma.trashOperation.findMany({ where: { purgeAfter: { lte: new Date() } }, select: { id: true, userId: true, deletedAt: true, purgeAfter: true }, take: 100, orderBy: { purgeAfter: "asc" } });
     let deleted = 0;
     for (const operation of operations) {
       const setting = await prisma.userSettings.upsert({ where: { userId: operation.userId }, create: { userId: operation.userId }, update: {}, select: { trashRetentionDays: true } });
